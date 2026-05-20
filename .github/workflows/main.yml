@@ -1,0 +1,25 @@
+name: Lotto Auto Update
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Firebase
+        env:
+          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
+        run: |
+          echo $FIREBASE_KEY > serviceAccountKey.json
+          npm install firebase-admin
+          node -e '
+            const admin = require("firebase-admin");
+            const serviceAccount = require("./serviceAccountKey.json");
+            admin.initializeApp({ 
+              credential: admin.credential.cert(serviceAccount), 
+              databaseURL: "https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app" 
+            });
+            admin.database().ref("pcso_data/3D/result").set("1-2-4");
+          '
