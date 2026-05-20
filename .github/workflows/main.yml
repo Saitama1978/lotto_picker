@@ -1,4 +1,5 @@
 name: Lotto Auto Update
+
 on:
   schedule:
     - cron: '0 14 * * *'
@@ -7,19 +8,69 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Update Firebase
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Firebase Admin
+        run: npm install firebase-admin
+
+      - name: Create Firebase Key
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
-          echo $FIREBASE_KEY > serviceAccountKey.json
-          npm install firebase-admin
-          node -e '
-            const admin = require("firebase-admin");
-            const serviceAccount = require("./serviceAccountKey.json");
-            admin.initializeApp({ 
-              credential: admin.credential.cert(serviceAccount), 
-              databaseURL: "https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app" 
+          echo '$FIREBASE_KEY' > serviceAccountKey.json
+
+      - name: Update Firebase Database
+        run: |
+          node <<EOF
+
+          const admin = require("firebase-admin");
+          const serviceAccount = require("./serviceAccountKey.json");
+
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            databaseURL: "https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app"
+          });
+
+          const db = admin.database();
+
+          async function updateData() {
+
+            await db.ref("pcso_data").update({
+
+              "3D": {
+                result: "1-2-4",
+                last_update: new Date().toISOString()
+              },
+
+              "2D": {
+                result: "12-08",
+                last_update: new Date().toISOString()
+              },
+
+              "6_42": {
+                result: "12-18-25-31-42-09",
+                jackpot: "5,940,000",
+                last_update: new Date().toISOString()
+              }
+
             });
-            admin.database().ref("pcso_data/3D/result").set("1-2-4");
-          '
+
+            console.log("Firebase Updated Successfully");
+
+            process.exit(0);
+          }
+
+          updateData().catch((err) => {
+            console.error(err);
+            process.exit(1);
+          });
+
+          EOF
