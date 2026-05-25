@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_database/firebase_database.dart'; // ✅ TAMA: Realtime Database na ang gamit
 import 'dart:math';
 
 void main() async {
@@ -8,11 +8,12 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', // Palitan mo ng totoong Web API Key kung mayroon ka na, kung wala ok lang muna ito
+        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
         projectId: 'lotto-asintado',
         appId: '1:458447298380:android:308fd26da180954e40b9e9',
         messagingSenderId: '458447298380',
         storageBucket: 'lotto-asintado.appspot.com',
+        databaseURL: 'https://lotto-asintado-default-rtdb.firebaseio.com', // ✅ DAGDAG: Para siguradong konektado sa database mo
       ),
     );
     print("✅ Firebase initialized successfully!");
@@ -50,8 +51,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late TabController _strategyTabController;
   
   final List<String> strategies = ['Hot Frequency', 'Odd/Even Balance', 'High/Low Range'];
-  
-  // Ginamit na natin ang Dash (-) dito boss para tugma sa Firebase!
   final List<String> lottoGames = ['6-58', '6-55', '6-49', '6-45', '6-42', '2D', '3D', '4D', '6D'];
   
   String selectedGameFreq = '3D'; 
@@ -61,22 +60,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<int> generatedNumbers = [];
 
   final Map<String, Map<String, String>> liveResultsData = {
-    '3D': {'name': '3D Swertres', 'date': 'May 21, 2026', 'result': '1-2-4', 'jackpot': 'P4,500.00'},
-    '2D': {'name': '2D EZ2 Lotto', 'date': 'May 21, 2026', 'result': '00-00', 'jackpot': 'P4,000.00'},
-    '6-55': {'name': 'Grand Lotto 6/55', 'date': 'May 20, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P29,700,000.00'},
-    '6-58': {'name': 'Ultra Lotto 6/58', 'date': 'May 19, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P49,500,000.00'},
-    '6-49': {'name': 'Super Lotto 6/49', 'date': 'May 20, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P16,000,000.00'},
-    '6-45': {'name': 'Mega Lotto 6/45', 'date': 'May 18, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P8,900,000.00'},
-    '6-42': {'name': 'Lotto 6/42', 'date': 'May 19, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P6,000,000.00'},
-    '4D': {'name': '4D Lotto', 'date': 'May 20, 2026', 'result': '0-0-0-0', 'jackpot': 'P10,000.00'},
-    '6D': {'name': '6D Lotto', 'date': 'May 19, 2026', 'result': '0-0-0-0-0-0', 'jackpot': 'P150,000.00'},
+    '3D': {'name': '3D Swertres', 'date': 'May 25, 2026', 'result': '1-2-4', 'jackpot': 'P4,500.00'},
+    '2D': {'name': '2D EZ2 Lotto', 'date': 'May 25, 2026', 'result': '00-00', 'jackpot': 'P4,000.00'},
+    '6-55': {'name': 'Grand Lotto 6/55', 'date': 'May 24, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P29,700,000.00'},
+    '6-58': {'name': 'Ultra Lotto 6/58', 'date': 'May 24, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P49,500,000.00'},
+    '6-49': {'name': 'Super Lotto 6/49', 'date': 'May 24, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P16,000,000.00'},
+    '6-45': {'name': 'Mega Lotto 6/45', 'date': 'May 24, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P8,900,000.00'},
+    '6-42': {'name': 'Lotto 6/42', 'date': 'May 24, 2026', 'result': '00-00-00-00-00-00', 'jackpot': 'P6,000,000.00'},
+    '4D': {'name': '4D Lotto', 'date': 'May 24, 2026', 'result': '0-0-0-0', 'jackpot': 'P10,000.00'},
+    '6D': {'name': '6D Lotto', 'date': 'May 24, 2026', 'result': '0-0-0-0-0-0', 'jackpot': 'P150,000.00'},
   };
 
   final Map<String, List<Map<String, String>>> historyLogsData = {
     '3D': [
-      {'date': 'May 20, 2026', 'time': '2 PM', 'result': '9-5-2'},
-      {'date': 'May 20, 2026', 'time': '5 PM', 'result': '4-7-1'},
-      {'date': 'May 20, 2026', 'time': '9 PM', 'result': '3-0-8'},
+      {'date': 'May 24, 2026', 'time': '2 PM', 'result': '9-5-2'},
+      {'date': 'May 24, 2026', 'time': '5 PM', 'result': '4-7-1'},
+      {'date': 'May 24, 2026', 'time': '9 PM', 'result': '3-0-8'},
     ],
   };
 
@@ -143,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
     } else {
-      int maxNum = int.parse(game.split('-').last); // Binago mula slash papuntang dash
+      int maxNum = int.parse(game.split('-').last); 
       List<int> pool = hotNumbersPool[game] ?? [];
       
       List<int> validPool = List.from(pool);
@@ -182,6 +181,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       resultList.sort();
     }
 
+    // 🚀 DAGDAG: Awtomatikong isasave sa Firebase Realtime Database pagka-generate
+    String formattedResult = resultList.join('-');
+    FirebaseDatabase.instance.ref('lotto_games/$game').update({
+      'name': game.contains('D') ? (game == '2D' ? '2D EZ2 Lotto' : '$game Swertres') : 'Lotto ${game.replaceAll('-', '/')}',
+      'result': formattedResult,
+      'date': 'May 25, 2026',
+      'jackpot': game.contains('D') ? 'P4,500.00' : 'P10,000,000.00+',
+    }).then((_) {
+      print("🎯 Realtime DB updated successfully!");
+    }).catchError((err) {
+      print("❌ Error updating Realtime DB: $err");
+    });
+
     setState(() {
       generatedNumbers = resultList;
     });
@@ -217,23 +229,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           )).toList(),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('lotto_games').snapshots(),
+      body: StreamBuilder<DatabaseEvent>(
+        stream: FirebaseDatabase.instance.ref('lotto_games').onValue, // ✅ TAMA: Nakikinig sa Realtime Database stream
         builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-            for (var doc in snapshot.data!.docs) {
-              final data = doc.data() as Map<String, dynamic>;
-              final gameKey = doc.id; 
+          if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+            try {
+              final Map<dynamic, dynamic> gamesData = snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
+              gamesData.forEach((key, value) {
+                final gameKey = key.toString();
+                final data = Map<String, dynamic>.from(value as Map);
 
-              // Palitan ang pagpapakita ng pangalan mula dash papuntang slash para maganda pa rin tingnan sa app
-              String displayName = gameKey.contains('-') ? 'Lotto ${gameKey.replaceAll('-', '/')}' : gameKey;
+                String displayName = gameKey.contains('-') ? 'Lotto ${gameKey.replaceAll('-', '/')}' : gameKey;
 
-              liveResultsData[gameKey] = {
-                'name': data['name']?.toString() ?? displayName,
-                'date': data['date']?.toString() ?? 'No Data',
-                'result': data['result']?.toString() ?? _getDefaultPlaceholderResult(gameKey),
-                'jackpot': data['jackpot']?.toString() ?? 'N/A',
-              };
+                liveResultsData[gameKey] = {
+                  'name': data['name']?.toString() ?? displayName,
+                  'date': data['date']?.toString() ?? 'No Data',
+                  'result': data['result']?.toString() ?? _getDefaultPlaceholderResult(gameKey),
+                  'jackpot': data['jackpot']?.toString() ?? 'N/A',
+                };
+              });
+            } catch (e) {
+              print("Error parsing Realtime DB: $e");
             }
           }
 
