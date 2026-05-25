@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart'; // ✅ TAMA: Realtime Database na ang gamit
+import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
 
 void main() async {
@@ -8,12 +8,13 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
+        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', // ⚠️ Boss, palitan mo ito ng totoong Web API Key mo mula sa Project Settings mamaya!
         projectId: 'lotto-asintado',
         appId: '1:458447298380:android:308fd26da180954e40b9e9',
         messagingSenderId: '458447298380',
         storageBucket: 'lotto-asintado.appspot.com',
-        databaseURL: 'https://lotto-asintado-default-rtdb.firebaseio.com', // ✅ DAGDAG: Para siguradong konektado sa database mo
+        // ✅ INAYOS: Idinagdag ang tamang Singapore endpoint base sa database mo
+        databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app', 
       ),
     );
     print("✅ Firebase initialized successfully!");
@@ -122,6 +123,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     Random random = Random();
     List<int> resultList = [];
 
+    // Gagawing underscore ang dash para sa Firebase keys (halimbawa: '6-58' -> '6_58')
+    String firebaseGameKey = game.replaceAll('-', '_');
+
     if (game.contains('D')) {
       int digitsToGenerate = int.parse(game.replaceAll('D', ''));
       List<int> pool = hotNumbersPool[game] ?? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -181,9 +185,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       resultList.sort();
     }
 
-    // 🚀 DAGDAG: Awtomatikong isasave sa Firebase Realtime Database pagka-generate
     String formattedResult = resultList.join('-');
-    FirebaseDatabase.instance.ref('lotto_games/$game').update({
+    
+    // ✅ INAYOS: Ginawang 'pcso_data' ang target node para tugma sa Realtime DB mo sa screen
+    FirebaseDatabase.instance.ref('pcso_data/$firebaseGameKey').update({
       'name': game.contains('D') ? (game == '2D' ? '2D EZ2 Lotto' : '$game Swertres') : 'Lotto ${game.replaceAll('-', '/')}',
       'result': formattedResult,
       'date': 'May 25, 2026',
@@ -230,13 +235,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
       ),
       body: StreamBuilder<DatabaseEvent>(
-        stream: FirebaseDatabase.instance.ref('lotto_games').onValue, // ✅ TAMA: Nakikinig sa Realtime Database stream
+        // ✅ INAYOS: Naka-stream na sa 'pcso_data' kung saan naroon ang database logs mo
+        stream: FirebaseDatabase.instance.ref('pcso_data').onValue, 
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
             try {
               final Map<dynamic, dynamic> gamesData = snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
               gamesData.forEach((key, value) {
-                final gameKey = key.toString();
+                // I-convert pabalik ang '_' papuntang '-' para hindi mag-crash ang UI selection keys
+                final gameKey = key.toString().replaceAll('_', '-');
                 final data = Map<String, dynamic>.from(value as Map);
 
                 String displayName = gameKey.contains('-') ? 'Lotto ${gameKey.replaceAll('-', '/')}' : gameKey;
