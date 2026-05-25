@@ -1,23 +1,16 @@
-name: Flutter Build APK
+name: Build Android APK
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Setup Java Development Kit (JDK)
-        uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -25,17 +18,16 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.19.0'
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Android APK
-        run: flutter build apk --debug --target-platform android-arm64
+      - name: Build APK
+        run: flutter build apk --release
 
-      - name: Upload to Firebase App Distribution
-        uses: w9jds/firebase-action@master
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
         with:
-          args: appdistribution:distribute build/app/outputs/flutter-apk/app-debug.apk --app 1:458447298380:android:308fd26da180954e40b9e9
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_KEY }}
+          name: app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
