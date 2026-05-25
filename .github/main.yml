@@ -32,9 +32,10 @@ jobs:
 
       - name: Build Android APK
         run: flutter build apk --debug --target-platform android-arm64
-        - name: Upload to Firebase App Distribution
+
+      - name: Upload to Firebase App Distribution
         uses: w9jds/firebase-action@master
         with:
-          args: appdistribution:distribute build/app/outputs/flutter-apk/app-debug.apk --app YOUR_FIREBASE_APP_ID
+          args: appdistribution:distribute build/app/outputs/flutter-apk/app-debug.apk --app 1:458447298380:android:308fd26da180954e40b9e9
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_KEY }}
