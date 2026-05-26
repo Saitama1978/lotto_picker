@@ -9,8 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Setup Java
         uses: actions/setup-java@v3
@@ -23,27 +22,18 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Papasok sa tamang pwesto ng pubspec.yaml mo
       - name: Install dependencies
         run: |
           cd lotto_picker/lotto_picker
           flutter pub get
 
-      # Lilikha ng iyong bagong app icon
-      - name: Generate Launcher Icons
-        run: |
-          cd lotto_picker/lotto_picker
-          flutter pub run flutter_launcher_icons
-
-      # Dito na iluluto ang iyong pinakahihintay na APK
       - name: Build APK
         run: |
           cd lotto_picker/lotto_picker
           flutter build apk --release
 
-      # Ipapasa ang APK para ma-download mo sa phone mo
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: Lotto-Asintado-Pro-APK
+          name: app-release
           path: lotto_picker/lotto_picker/build/app/outputs/flutter-apk/app-release.apk
