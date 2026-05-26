@@ -1,6 +1,10 @@
-name: Build Android APK
+name: Lotto Auto Update
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # 👈 Ito ang magdadagdag ng "Run workflow" button para mapatakbo mo kahit anong oras!
 
 jobs:
   build:
@@ -20,11 +24,17 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Pumasok sa tamang folder kung nasaan ang pubspec.yaml
+      # Pumasok sa dobleng folder para ma-detect ang pubspec.yaml
       - name: Install dependencies
         run: |
           cd lotto_picker/lotto_picker
           flutter pub get
+
+      # ✅ BAGONG DAGDAG: Patakbuhin ang pag-generate ng Icon para hindi mag-error
+      - name: Generate Launcher Icons
+        run: |
+          cd lotto_picker/lotto_picker
+          flutter pub run flutter_launcher_icons
 
       # I-build ang APK mula sa tamang folder
       - name: Build APK
