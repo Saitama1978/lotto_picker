@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # 👈 Ito ang magdadagdag ng "Run workflow" button para mapatakbo mo kahit anong oras!
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,22 +24,22 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Pumasok sa dobleng folder para ma-detect ang pubspec.yaml
+      # Inayos ang daan patungo sa nag-iisang lotto_picker folder
       - name: Install dependencies
         run: |
-          cd lotto_picker/lotto_picker
+          cd lotto_picker
           flutter pub get
 
-      # ✅ BAGONG DAGDAG: Patakbuhin ang pag-generate ng Icon para hindi mag-error
+      # Patakbuhin ang pag-generate ng Icon sa tamang folder
       - name: Generate Launcher Icons
         run: |
-          cd lotto_picker/lotto_picker
+          cd lotto_picker
           flutter pub run flutter_launcher_icons
 
-      # I-build ang APK mula sa tamang folder
+      # I-build ang APK
       - name: Build APK
         run: |
-          cd lotto_picker/lotto_picker
+          cd lotto_picker
           flutter build apk --release
 
       # I-upload ang natapos na APK para ma-download mo
@@ -47,4 +47,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: app-release
-          path: lotto_picker/lotto_picker/build/app/outputs/flutter-apk/app-release.apk
+          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
