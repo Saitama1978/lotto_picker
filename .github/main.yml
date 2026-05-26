@@ -1,10 +1,6 @@
-name: Lotto Auto Update
+name: Build Android APK
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+on: [push]
 
 jobs:
   build:
@@ -24,27 +20,27 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Inayos ang daan patungo sa nag-iisang lotto_picker folder
+      # Hakbang para pumasok sa tamang folder kung nasaan ang pubspec.yaml mo
       - name: Install dependencies
         run: |
-          cd lotto_picker
+          cd lotto_picker/lotto_picker
           flutter pub get
 
-      # Patakbuhin ang pag-generate ng Icon sa tamang folder
+      # Hakbang para i-generate ang astig mong app icon
       - name: Generate Launcher Icons
         run: |
-          cd lotto_picker
+          cd lotto_picker/lotto_picker
           flutter pub run flutter_launcher_icons
 
-      # I-build ang APK
+      # Hakbang para iluto ang mismong APK
       - name: Build APK
         run: |
-          cd lotto_picker
+          cd lotto_picker/lotto_picker
           flutter build apk --release
 
-      # I-upload ang natapos na APK para ma-download mo
+      # Hakbang para ilabas ang natapos na file para ma-download mo
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
           name: app-release
-          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
+          path: lotto_picker/lotto_picker/build/app/outputs/flutter-apk/app-release.apk
