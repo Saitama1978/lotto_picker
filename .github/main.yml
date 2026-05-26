@@ -1,6 +1,9 @@
 name: Build Android APK
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -20,27 +23,27 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Hakbang para pumasok sa tamang folder kung nasaan ang pubspec.yaml mo
+      # Papasok sa tamang pwesto ng pubspec.yaml mo
       - name: Install dependencies
         run: |
           cd lotto_picker/lotto_picker
           flutter pub get
 
-      # Hakbang para i-generate ang astig mong app icon
+      # Lilikha ng iyong bagong app icon
       - name: Generate Launcher Icons
         run: |
           cd lotto_picker/lotto_picker
           flutter pub run flutter_launcher_icons
 
-      # Hakbang para iluto ang mismong APK
+      # Dito na iluluto ang iyong pinakahihintay na APK
       - name: Build APK
         run: |
           cd lotto_picker/lotto_picker
           flutter build apk --release
 
-      # Hakbang para ilabas ang natapos na file para ma-download mo
-      - name: Upload APK
+      # Ipapasa ang APK para ma-download mo sa phone mo
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: app-release
+          name: Lotto-Asintado-Pro-APK
           path: lotto_picker/lotto_picker/build/app/outputs/flutter-apk/app-release.apk
