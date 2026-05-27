@@ -74,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // Live data trigger kapag nagpalit ng laro sa dropdown!
   void _listenToFirebase(String game) {
     _dbRootRef.child(game).onValue.listen((DatabaseEvent event) {
+      if (!mounted) return;
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
       setState(() {
         if (game == '3D') {
@@ -86,12 +87,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             history5pm = history['5pm']?.toString() ?? '4-7-1';
             history9pm = history['9pm']?.toString() ?? '3-0-8';
           }
+        } else if (game == '2D') {
+          gameName = "2D Lotto";
+          jackpotPrize = "P4,000.00";
+          cloudResult = data?['result']?.toString() ?? '24-11';
         } else {
-          // Fallback settings para sa mga malalaking lotto games (6-45, etc.)
           gameName = "$game Lotto";
           jackpotPrize = "Milyong Piso Jackpot";
           cloudResult = data?['result']?.toString() ?? '00-00-00-00-00-00';
-          history2pm = "..."; history5pm = "..."; history9pm = "...";
         }
       });
     });
@@ -107,7 +110,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       } else if (selectedGameFreq == '2D') {
         generatedNumbers = List.generate(2, (_) => random.nextInt(31) + 1);
       } else {
-        // Para sa mga malalaking laro (6-42, 6-45, etc.) - Kukuha ng 6 na kakaibang numero!
         int maxNumber = int.parse(selectedGameFreq.split('-')[1]);
         Set<int> numbersSet = {};
         while (numbersSet.length < 6) {
@@ -130,9 +132,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Icon(Icons.track_changes, color: Colors.redAccent, size: 20),
+                // PINALITAN NG SIGURADONG GAGANANG ICONS (WALA NANG KAHON NA MAY EKIS)
+                Icon(Icons.adjust, color: Colors.redAccent, size: 20),
                 SizedBox(width: 5),
-                Text('LOTTO ASINTADO STRATEGY PRO', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text('LOTTO ASINTADO STRATEGY PRO', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
               ],
             ),
             const Text('Developer: Renante Fullo', style: TextStyle(fontSize: 11, color: Colors.blueAccent)),
@@ -168,7 +171,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
-                            Icon(Icons.satellite_alt, color: Colors.green, size: 16),
+                            // PINALITAN NG STANDARD ICON PARA SAFE
+                            Icon(Icons.cloud_done, color: Colors.green, size: 16),
                             SizedBox(width: 5),
                             Text('CLOUD MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
@@ -188,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   if (selectedGameFreq == '3D') ...[
                     Row(
                       children: const [
-                        Icon(Icons.calendar_month, color: Colors.grey, size: 16),
+                        Icon(Icons.calendar_today, color: Colors.grey, size: 16),
                         SizedBox(width: 5),
                         Text('PREVIOUS PCSO HISTORY (3D)', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
@@ -218,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         value: selectedGameFreq,
                         isExpanded: true,
                         dropdownColor: const Color(0xFF1E1E1E),
+                        // TINANGGAL ANG DESIGN ICON NA SUMISIRA SA SCREEN
                         items: lottoGames.map((String game) {
                           return DropdownMenuItem<String>(
                             value: game,
@@ -227,8 +232,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         onChanged: (value) {
                           setState(() {
                             selectedGameFreq = value!;
-                            generatedNumbers = []; // i-clear ang lumang hula
-                            _listenToFirebase(selectedGameFreq); // lumipat ng pakikinggang firebase folder
+                            generatedNumbers = []; 
+                            _listenToFirebase(selectedGameFreq); 
                           });
                         },
                       ),
