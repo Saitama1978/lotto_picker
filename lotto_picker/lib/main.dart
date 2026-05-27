@@ -16,9 +16,8 @@ void main() async {
         databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app', 
       ),
     );
-    print("✅ Firebase initialized successfully!");
   } catch (e) {
-    print("⚠️ Running in offline-ready mode: $e");
+    print("⚠️ Offline mode: $e");
   }
   runApp(const LottoAsintadoApp());
 }
@@ -49,58 +48,73 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _strategyTabController;
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('pcso_data/3D');
+  final DatabaseReference _dbRootRef = FirebaseDatabase.instance.ref('pcso_data');
   
   final List<String> strategies = ['Hot Frequency', 'Odd/Even Balance', 'High/Low Range'];
-  final List<String> lottoGames = ['6-58', '6-55', '6-49', '6-45', '6-42', '2D', '3D', '4D', '6D'];
+  final List<String> lottoGames = ['3D', '2D', '6-42', '6-45', '6-49', '6-55', '6-58'];
   
   String selectedGameFreq = '3D'; 
   List<int> generatedNumbers = [];
 
-  // Live variable states na sasalo sa Firebase data
-  String cloudResult = "Loading...";
-  String history2pm = "...";
-  String history5pm = "...";
-  String history9pm = "...";
-
-  final List<int> pool = [5, 9, 2, 7, 0];
+  // Live Firebase Map states
+  String cloudResult = "9-2-5";
+  String history2pm = "9-5-2";
+  String history5pm = "4-7-1";
+  String history9pm = "3-0-8";
+  String gameName = "3D Swertres";
+  String jackpotPrize = "P4,500.00";
 
   @override
   void initState() {
     super.initState();
     _strategyTabController = TabController(length: strategies.length, vsync: this);
-    _listenToFirebase();
+    _listenToFirebase(selectedGameFreq);
   }
 
-  // 📡 KONEKSYON: Dito na makikinig ang app mo nang LIVE sa database mo!
-  void _listenToFirebase() {
-    _dbRef.onValue.listen((DatabaseEvent event) {
+  // Live data trigger kapag nagpalit ng laro sa dropdown!
+  void _listenToFirebase(String game) {
+    _dbRootRef.child(game).onValue.listen((DatabaseEvent event) {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data != null) {
-        setState(() {
-          cloudResult = data['result']?.toString() ?? '1-2-4';
-          
-          if (data['history'] != null) {
-            final history = data['history'] as Map<dynamic, dynamic>;
+      setState(() {
+        if (game == '3D') {
+          gameName = "3D Swertres";
+          jackpotPrize = "P4,500.00";
+          cloudResult = data?['result']?.toString() ?? '9-2-5';
+          if (data?['history'] != null) {
+            final history = data?['history'] as Map<dynamic, dynamic>;
             history2pm = history['2pm']?.toString() ?? '9-5-2';
             history5pm = history['5pm']?.toString() ?? '4-7-1';
             history9pm = history['9pm']?.toString() ?? '3-0-8';
           }
-        });
-      }
+        } else {
+          // Fallback settings para sa mga malalaking lotto games (6-45, etc.)
+          gameName = "$game Lotto";
+          jackpotPrize = "Milyong Piso Jackpot";
+          cloudResult = data?['result']?.toString() ?? '00-00-00-00-00-00';
+          history2pm = "..."; history5pm = "..."; history9pm = "...";
+        }
+      });
     });
   }
 
-  @override
-  void dispose() {
-    _strategyTabController.dispose();
-    super.dispose();
-  }
-
+  // Dynamic Generator base sa piniling laro!
   void generateNumbers() {
     final random = Random();
     setState(() {
-      generatedNumbers = List.generate(3, (_) => pool[random.nextInt(pool.length)]);
+      if (selectedGameFreq == '3D') {
+        List<int> pool = [5, 9, 2, 7, 0];
+        generatedNumbers = List.generate(3, (_) => pool[random.nextInt(pool.length)]);
+      } else if (selectedGameFreq == '2D') {
+        generatedNumbers = List.generate(2, (_) => random.nextInt(31) + 1);
+      } else {
+        // Para sa mga malalaking laro (6-42, 6-45, etc.) - Kukuha ng 6 na kakaibang numero!
+        int maxNumber = int.parse(selectedGameFreq.split('-')[1]);
+        Set<int> numbersSet = {};
+        while (numbersSet.length < 6) {
+          numbersSet.add(random.nextInt(maxNumber) + 1);
+        }
+        generatedNumbers = numbersSet.toList()..sort();
+      }
     });
   }
 
@@ -141,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cloud Monitor Active Card (GUMAGALAW NA!)
+                  // Cloud Monitor Active Card
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -160,94 +174,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ],
                         ),
                         const SizedBox(height: 4),
-                        const Text('3D Swertres | Live Update', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text('$gameName | Live Update', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                         const SizedBox(height: 12),
-                        Text(cloudResult, style: const TextStyle(color: Colors.amber, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4)),
+                        Text(cloudResult, style: const TextStyle(color: Colors.amber, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 2)),
                         const SizedBox(height: 4),
-                        const Text('Jackpot: P4,500.00', style: TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text('Jackpot: $jackpotPrize', style: const TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
                   
-                  // Previous History Section (GUMAGALAW NA RIN!)
-                  Row(
-                    children: const [
-                      Icon(Icons.calendar_month, color: Colors.grey, size: 16),
-                      SizedBox(width: 5),
-                      Text('PREVIOUS PCSO HISTORY (3D)', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // 2 PM Box
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-                          child: Column(
-                            children: [
-                              const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                child: const Text('2 PM', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(history2pm, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // 5 PM Box
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-                          child: Column(
-                            children: [
-                              const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                child: const Text('5 PM', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(history5pm, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // 9 PM Box
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-                          child: Column(
-                            children: [
-                              const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                child: const Text('9 PM', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(history9pm, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                  // Previous History Section (Makikita lang kapag 3D ang pinili para malinis)
+                  if (selectedGameFreq == '3D') ...[
+                    Row(
+                      children: const [
+                        Icon(Icons.calendar_month, color: Colors.grey, size: 16),
+                        SizedBox(width: 5),
+                        Text('PREVIOUS PCSO HISTORY (3D)', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildHistoryBox('2 PM', history2pm),
+                        _buildHistoryBox('5 PM', history5pm),
+                        _buildHistoryBox('9 PM', history9pm),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Target Draw Selector Card
                   Container(
@@ -271,6 +227,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         onChanged: (value) {
                           setState(() {
                             selectedGameFreq = value!;
+                            generatedNumbers = []; // i-clear ang lumang hula
+                            _listenToFirebase(selectedGameFreq); // lumipat ng pakikinggang firebase folder
                           });
                         },
                       ),
@@ -284,7 +242,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       generatedNumbers.isEmpty 
                         ? 'Click Generate using Hot Frequency settings' 
                         : generatedNumbers.join(' - '),
-                      style: const TextStyle(color: Colors.amber, fontSize: 28, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: generatedNumbers.isEmpty ? Colors.grey.shade600 : Colors.amber,
+                        fontSize: generatedNumbers.isEmpty ? 13 : 26,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -309,6 +272,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryBox(String time, String result) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          children: [
+            const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+              child: Text(time, style: const TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 8),
+            Text(result, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
