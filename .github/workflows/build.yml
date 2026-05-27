@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Para pwede mong pindutin nang manu-mano kahit anong oras
+  workflow_dispatch:
 
 jobs:
   build_and_update:
@@ -13,12 +13,12 @@ jobs:
       - uses: actions/checkout@v4
 
       # =========================================================
-      # BAHAGI 1: PAG-UPDATE NG DATA AT HISTORY SA FIREBASE
+      # BAHAGI 1: DATABASE TRIGGER (FIREBASE UPDATE)
       # =========================================================
-      - name: Install Firebase Admin Dependency
+      - name: Install Firebase Dependency
         run: npm install firebase-admin
 
-      - name: Run Database Update Script
+      - name: Run Database Update
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
@@ -26,24 +26,21 @@ jobs:
           node -e "
           const admin = require('firebase-admin');
           const serviceAccount = require('./serviceAccountKey.json');
-          
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
             databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app'
           });
-          
           const db = admin.database();
-          
           async function run() {
             try {
               await db.ref('pcso_data/3D/result').set('9-2-5');
               await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
               await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
               await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
-              console.log('Solid! Firebase Data and History updated!');
+              console.log('Firebase Updated Successfully');
               process.exit(0);
             } catch(e) {
-              console.error('Sabit sa database:', e);
+              console.error(e);
               process.exit(1);
             }
           }
@@ -51,7 +48,7 @@ jobs:
           "
 
       # =========================================================
-      # BAHAGI 2: PAG-LULUTO NG STABLE FLUTTER APK WITH ICON
+      # BAHAGI 2: DIRETSONG APK COMPILATION SA 'LOTTO_PICKER'
       # =========================================================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -64,54 +61,39 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      - name: Generate Fresh Flutter App Framework
-        run: |
-          flutter create --platforms android fresh_app
-
-      - name: Configure Android SDK Version for Firebase
-        run: |
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
-          sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
-
-      - name: Fix Target Icon Syntax Error
-        run: |
-          sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
-
-      - name: Merge Source Code to Fresh App Workspace
-        run: |
-          rm -f fresh_app/pubspec.yaml
-          cp -r lotto_picker/lib fresh_app/
-          cp lotto_picker/pubspec.yaml fresh_app/
-          
-          # SIGURADUHING KOPYADO ANG LAHAT NG ASSETS AT LOGO IMAGES
-          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
-          if [ -f "lotto_picker/logo.png" ]; then cp lotto_picker/logo.png fresh_app/; fi
-          if [ -f "lotto_picker/app_icon.png" ]; then cp lotto_picker/app_icon.png fresh_app/; fi
-          if [ -f "logo.png" ]; then cp logo.png fresh_app/; fi
-          if [ -f "app_icon.png" ]; then cp app_icon.png fresh_app/; fi
-
-      - name: Inject Firebase Config for Android app
+      # Dito natin isasaksak ang google-services.json sa loob mismo ng android/app mo
+      - name: Inject Firebase Google Services JSON
         env:
           GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ ! -z "$GOOGLE_SERVICES" ]; then
-            echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
+            echo "$GOOGLE_SERVICES" > lotto_picker/android/app/google-services.json
           fi
 
-      - name: Generate App Launcher Icons
+      # Pinipilit nating baguhin ang minSdkVersion sa orihinal mong folder para hindi mag-error sa Firebase
+      - name: Force Fix Android MinSdkVersion
         run: |
-          cd fresh_app
-          flutter pub get
-          # Niluto na ang launcher icon mo gamit ang kinopyang larawan
-          flutter pub run flutter_launcher_icons:main || true
+          if [ -f "lotto_picker/android/app/build.gradle" ]; then
+            sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' lotto_picker/android/app/build.gradle
+            sed -i 's/flutter.minSdkVersion/21/g' lotto_picker/android/app/build.gradle
+          fi
 
-      - name: Build Final Release APK
+      - name: Fix Target Icon Code Bug
         run: |
-          cd fresh_app
+          if [ -f "lotto_picker/lib/main.dart" ]; then
+            sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
+          fi
+
+      # Dito na gagawin ang pagluluto ng Icon at pag-build ng APK sa tamang folder
+      - name: Build Flutter Launcher Icons & APK
+        run: |
+          cd lotto_picker
+          flutter pub get
+          flutter pub run flutter_launcher_icons:main || true
           flutter build apk --release
 
-      - name: Upload APK Product
+      - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
           name: Lotto-Asintado-Release-APK
-          path: fresh_app/build/app/outputs/flutter-apk/app-release.apk
+          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
