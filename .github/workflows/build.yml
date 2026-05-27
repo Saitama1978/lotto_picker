@@ -9,7 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # In-update sa v4 para hindi harangin ng GitHub
       - uses: actions/checkout@v4
 
       - name: Setup Java
@@ -18,25 +17,26 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # In-update sa v4 para sa pinakabagong compatibility
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.0'
 
+      # Tamang daan: papasok sa iisang folder lang
       - name: Install dependencies
         run: |
-          cd lotto_picker/lotto_picker
+          cd lotto_picker
           flutter pub get
 
+      # Dito na iluluto ang APK
       - name: Build APK
         run: |
-          cd lotto_picker/lotto_picker
+          cd lotto_picker
           flutter build apk --release
 
-      # DITO ANG CRITICAL CHANGE: Binago natin mula v3 papuntang v4
+      # I-upload ang pinal na file para ma-download mo
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Lotto-Asintado-Release-APK
-          path: lotto_picker/lotto_picker/build/app/outputs/flutter-apk/app-release.apk
+          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
