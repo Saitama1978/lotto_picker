@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # =========================================================
-      # BAHAGI 1: DATABASE TRIGGER (FIREBASE UPDATE)
+      # BAHAGI 1: DATABASE TRIGGER (FIREBASE MULTI-GAME UPDATE)
       # =========================================================
       - name: Install Firebase Dependency
         run: npm install firebase-admin
@@ -33,11 +33,20 @@ jobs:
           const db = admin.database();
           async function run() {
             try {
+              // Live 3D Data
               await db.ref('pcso_data/3D/result').set('9-2-5');
               await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
               await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
               await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
-              console.log('Firebase Updated!');
+              
+              // Live 2D Data Fallback
+              await db.ref('pcso_data/2D/result').set('24-11');
+              
+              // Live Grandes Lotto Fallbacks (Para may laman at hindi mag-zero)
+              await db.ref('pcso_data/6-42/result').set('08-15-22-29-35-41');
+              await db.ref('pcso_data/6-45/result').set('02-12-24-31-39-44');
+              
+              console.log('Firebase Multi-Game Database Updated!');
               process.exit(0);
             } catch(e) {
               console.error(e);
@@ -48,7 +57,7 @@ jobs:
           "
 
       # =========================================================
-      # BAHAGI 2: GENERATE FRESH APP PARA MAKAIWAS SA V2 EMBEDDING ERROR
+      # BAHAGI 2: GENERATE AND FIX WORKSPACE ARCHITECTURE
       # =========================================================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -61,7 +70,6 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Gagawa ng bagong malinis na android embedding structure
       - name: Generate Fresh Flutter App Framework
         run: |
           flutter create --platforms android fresh_app
@@ -71,25 +79,20 @@ jobs:
           sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
           sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
 
-      - name: Fix Target Icon Code Bug
-        run: |
-          sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
-
-      # HAHAKUTIN AT PAGSASAMAHIN ANG CODE AT LAHAT NG POSIBLENG LOGO/ICON FILES
       - name: Merge Source Code and Logo Assets
         run: |
           rm -f fresh_app/pubspec.yaml
           cp -r lotto_picker/lib fresh_app/
           cp lotto_picker/pubspec.yaml fresh_app/
           
-          # Kopya ng Assets Folder kung mayroon
-          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
+          # Gumawa ng assets folder sa loob ng kusina
+          mkdir -p fresh_app/assets
           
-          # Hahanapin at kokopyahin ang mga image files kung nasa labas
-          find lotto_picker -name "*.png" -exec cp {} fresh_app/ \; 2>/dev/null || true
-          find . -maxdepth 1 -name "*.png" -exec cp {} fresh_app/ \; 2>/dev/null || true
+          # Hahakutin at puwersahang ilalagay ang logo mo sa loob ng asset directory
+          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets/* fresh_app/assets/ 2>/dev/null || true; fi
+          find lotto_picker -name "*.png" -exec cp {} fresh_app/assets/logo.png \; 2>/dev/null || true
+          cp fresh_app/assets/logo.png fresh_app/assets/launcher_icon.png 2>/dev/null || true
 
-      # ISAKSAK ANG KONEKSYON SA DATABASE NG APP
       - name: Inject Firebase Google Services JSON
         env:
           GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -98,7 +101,15 @@ jobs:
             echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
           fi
 
-      # LUTUIN ANG LAUNCHER ICON GAMIT ANG HINAKOT NA ATTRIBUTES
+      - name: Force Overwrite Launcher Icon Configuration
+        run: |
+          cat << 'EOF' >> fresh_app/pubspec.yaml
+
+          flutter_launcher_icons:
+            android: true
+            image_path: "assets/logo.png"
+          EOF
+
       - name: Build Flutter Launcher Icons
         run: |
           cd fresh_app
