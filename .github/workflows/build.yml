@@ -40,10 +40,8 @@ jobs:
           rm -f fresh_app/pubspec.yaml
           cp -r lotto_picker/lib fresh_app/
           cp lotto_picker/pubspec.yaml fresh_app/
-          # Kung may assets folder ka para sa logo, isama natin dito:
           if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
 
-      # KONEKSYON: Dito ipapasok ang Firebase credentials para makakonekta sa live database
       - name: Inject Firebase Config
         env:
           GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -52,12 +50,10 @@ jobs:
             echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
           fi
 
-      # ICON COOKER: Awtomatikong bubuuin ang icon ng app mo kung naka-configure sa pubspec
       - name: Generate App Launcher Icons
         run: |
           cd fresh_app
           flutter pub get
-          # Tatakbo lang ito kung may configuration ka ng flutter_launcher_icons sa pubspec.yaml
           flutter pub run flutter_launcher_icons:main || true
 
       - name: Build APK
@@ -65,7 +61,6 @@ jobs:
           cd fresh_app
           flutter build apk --release
 
-       Dagdag na hakbang: I-upload din ang google-services para sa debug kung kailangan
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
