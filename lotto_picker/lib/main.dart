@@ -6,7 +6,6 @@ import 'dart:math';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // 🎯 IBINALIK ANG TANGING SUSI PARA HINDI MAG-WHITE SCREEN:
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
@@ -55,13 +54,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String selectedGameFreq = '3D'; 
   List<int> generatedNumbers = [];
 
-  // Live Screen Map states
+  // Live Screen States
   String cloudResult = "9-2-5";
   String history2pm = "9-5-2";
   String history5pm = "4-7-1";
   String history9pm = "3-0-8";
+  
+  // History Dates State
+  String date2pm = "Today";
+  String date5pm = "Today";
+  String date9pm = "Today";
+
   String gameName = "3D Swertres";
   String jackpotPrize = "P4,500.00";
+
+  // 🎯 BAGONG STATE: Dito itatago ang Dynamic Hot Pool galing sa Cloud!
+  List<int> cloudHotPool = [5, 9, 2, 7, 0]; // Fallback if offline
 
   @override
   void initState() {
@@ -70,31 +78,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _listenToFirestore(selectedGameFreq);
   }
 
-  // Live Listener galing sa Cloud Firestore
   void _listenToFirestore(String game) {
     FirebaseFirestore.instance.collection('pcso_data').doc(game).snapshots().listen((snapshot) {
       if (!mounted) return;
-      
       if (!snapshot.exists) {
         _checkBackupCollection(game);
         return;
       }
-
       _updateScreenData(game, snapshot.data());
     });
   }
 
-  // Backup checker para sa 'results' collection mo
   void _checkBackupCollection(String game) {
     FirebaseFirestore.instance.collection('results').doc(game).snapshots().listen((snapshot) {
       if (!mounted || !snapshot.exists) {
         setState(() {
           gameName = game.contains('-') ? "$game Lotto" : "$game Game";
           jackpotPrize = "Milyong Piso Jackpot";
-          if (game == '2D') { cloudResult = "00-00"; jackpotPrize = "P4,000.00"; }
-          else if (game == '4D') { cloudResult = "0-0-0-0"; jackpotPrize = "P10,000.00+"; }
-          else if (game == '6D') { cloudResult = "0-0-0-0-0-0"; jackpotPrize = "P150,000.00+"; }
-          else { cloudResult = "00-00-00-00-00-00"; }
         });
         return;
       }
@@ -104,29 +104,52 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _updateScreenData(String game, Map<String, dynamic>? data) {
     setState(() {
+      String dbJackpot = (data?['jackpot'] ?? '').toString();
+      
+      // 🎯 UTOS PARA HUGUTIN ANG HOT POOL GALING SA FIRESTORE
+      if (data != null && data.containsKey('hot_pool')) {
+        var rawPool = data['hot_pool'];
+        if (rawPool is List) {
+          cloudHotPool = rawPool.map((e) => int.parse(e.toString())).toList();
+        } else if (rawPool is String) {
+          // Kung string format tulad ng "5,9,2,7,0"
+          cloudHotPool = rawPool.split(',').map((e) => int.parse(e.trim())).toList();
+        }
+      } else {
+        // Default fallbacks kung walang data sa database field
+        if (game == '3D') cloudHotPool = [5, 9, 2, 7, 0];
+        else if (game == '2D') cloudHotPool = [24, 11, 5, 17, 30];
+        else cloudHotPool = [];
+      }
+
       if (game == '3D') {
         gameName = "3D Swertres";
-        jackpotPrize = "P4,500.00";
+        jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P4,500.00";
         cloudResult = (data?['result'] ?? '9-2-5').toString();
         
         history2pm = (data?['2pm'] ?? data?['history_2pm'] ?? '9-5-2').toString();
         history5pm = (data?['5pm'] ?? data?['history_5pm'] ?? '4-7-1').toString();
         history9pm = (data?['9pm'] ?? data?['history_9pm'] ?? '3-0-8').toString();
+        
+        date2pm = (data?['date_2pm'] ?? data?['2pm_date'] ?? 'Today').toString();
+        date5pm = (data?['date_5pm'] ?? data?['5pm_date'] ?? 'Today').toString();
+        date9pm = (data?['date_9pm'] ?? data?['9pm_date'] ?? 'Today').toString();
+
       } else if (game == '2D') {
         gameName = "2D Lotto";
-        jackpotPrize = "P4,000.00";
+        jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P4,000.00";
         cloudResult = (data?['result'] ?? '24-11').toString();
       } else if (game == '4D') {
         gameName = "4D Lotto";
-        jackpotPrize = "Minimum P10,000.00";
+        jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "Minimum P10,000.00";
         cloudResult = (data?['result'] ?? '1-2-3-4').toString();
       } else if (game == '6D') {
         gameName = "6D Lotto";
-        jackpotPrize = "Minimum P150,000.00";
+        jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "Minimum P150,000.00";
         cloudResult = (data?['result'] ?? '1-2-3-4-5-6').toString();
       } else {
         gameName = "$game Lotto";
-        jackpotPrize = "Milyong Piso Jackpot";
+        jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P20,000,000.00+";
         cloudResult = (data?['result'] ?? '00-00-00-00-00-00').toString();
       }
     });
@@ -136,10 +159,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final random = Random();
     setState(() {
       if (selectedGameFreq == '3D') {
-        List<int> pool = [5, 9, 2, 7, 0];
+        // 🎯 GAGAMITIN ANG LATEST HOT POOL GALING SA DATABASE
+        List<int> pool = cloudHotPool.isNotEmpty ? cloudHotPool : [5, 9, 2, 7, 0];
         generatedNumbers = List.generate(3, (_) => pool[random.nextInt(pool.length)]);
       } else if (selectedGameFreq == '2D') {
-        generatedNumbers = List.generate(2, (_) => random.nextInt(31) + 1);
+        List<int> pool = cloudHotPool.isNotEmpty ? cloudHotPool : [24, 11, 5, 17, 30];
+        Set<int> numbersSet = {};
+        while (numbersSet.length < 2) {
+          numbersSet.add(pool[random.nextInt(pool.length)]);
+        }
+        generatedNumbers = numbersSet.toList();
       } else if (selectedGameFreq == '4D') {
         generatedNumbers = List.generate(4, (_) => random.nextInt(10));
       } else if (selectedGameFreq == '6D') {
@@ -147,8 +176,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       } else {
         int maxNumber = int.parse(selectedGameFreq.split('-')[1]);
         Set<int> numbersSet = {};
-        while (numbersSet.length < 6) {
-          numbersSet.add(random.nextInt(maxNumber) + 1);
+        
+        // Kung may nakalaang hot pool galing sa cloud para sa malalaking laro, ibabagay nito
+        if (cloudHotPool.length >= 6) {
+          while (numbersSet.length < 6) {
+            numbersSet.add(cloudHotPool[random.nextInt(cloudHotPool.length)]);
+          }
+        } else {
+          while (numbersSet.length < 6) {
+            numbersSet.add(random.nextInt(maxNumber) + 1);
+          }
         }
         generatedNumbers = numbersSet.toList()..sort();
       }
@@ -229,9 +266,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildHistoryBox('2 PM', history2pm),
-                        _buildHistoryBox('5 PM', history5pm),
-                        _buildHistoryBox('9 PM', history9pm),
+                        _buildHistoryBox('2 PM', history2pm, date2pm),
+                        _buildHistoryBox('5 PM', history5pm, date5pm),
+                        _buildHistoryBox('9 PM', history9pm, date9pm),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -304,16 +341,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildHistoryBox(String time, String result) {
+  Widget _buildHistoryBox(String time, String result, String dateValue) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
         decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
         child: Column(
           children: [
-            const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
-            const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
@@ -321,6 +356,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 8),
             Text(result, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(
+              dateValue, 
+              style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.w400),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
