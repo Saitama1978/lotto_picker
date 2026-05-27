@@ -33,10 +33,10 @@ jobs:
           cd lotto_picker
           flutter pub get
 
-      - name: Build APK (Force Run)
+      - name: Build APK (Release)
         run: |
           cd lotto_picker
-          flutter build apk --release --no-sound-null-safety
+          flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
