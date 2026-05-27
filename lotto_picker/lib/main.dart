@@ -8,7 +8,7 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', // ⚠️ Boss, palitan mo ito ng totoong Web API Key mo mula sa Project Settings mamaya!
+        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
         projectId: 'lotto-asintado',
         appId: '1:458447298380:android:308fd26da180954e40b9e9',
         messagingSenderId: '458447298380',
@@ -49,38 +49,46 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _strategyTabController;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('pcso_data/3D');
   
   final List<String> strategies = ['Hot Frequency', 'Odd/Even Balance', 'High/Low Range'];
   final List<String> lottoGames = ['6-58', '6-55', '6-49', '6-45', '6-42', '2D', '3D', '4D', '6D'];
   
   String selectedGameFreq = '3D'; 
-  String selectedGameOddEven = '3D';
-  String selectedGameHiLo = '3D';
-
   List<int> generatedNumbers = [];
 
-  final Map<String, Map<String, String>> liveResultsData = {
-    '3D': {'name': '3D Swertres', 'date': 'May 21, 2026', 'result': '1-2-4', 'jackpot': 'P4,500.00'},
-    '2D': {'name': '2D EZ2 Lotto', 'date': 'May 21, 2026', 'result': '00-00', 'jackpot': 'P4,000.00'},
-  };
+  // Live variable states na sasalo sa Firebase data
+  String cloudResult = "Loading...";
+  String history2pm = "...";
+  String history5pm = "...";
+  String history9pm = "...";
 
-  // ✅ INAYOS: Binago sa May 20 para eksaktong pareho sa screenshot mo!
-  final Map<String, List<Map<String, String>>> historyLogsData = {
-    '3D': [
-      {'date': 'May 20', 'time': '2 PM', 'result': '9-5-2'},
-      {'date': 'May 20', 'time': '5 PM', 'result': '4-7-1'},
-      {'date': 'May 20', 'time': '9 PM', 'result': '3-0-8'},
-    ],
-  };
-
-  final Map<String, List<int>> hotNumbersPool = {
-    '3D': [5, 9, 2, 7, 0],
-  };
+  final List<int> pool = [5, 9, 2, 7, 0];
 
   @override
   void initState() {
     super.initState();
     _strategyTabController = TabController(length: strategies.length, vsync: this);
+    _listenToFirebase();
+  }
+
+  // 📡 KONEKSYON: Dito na makikinig ang app mo nang LIVE sa database mo!
+  void _listenToFirebase() {
+    _dbRef.onValue.listen((DatabaseEvent event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data != null) {
+        setState(() {
+          cloudResult = data['result']?.toString() ?? '1-2-4';
+          
+          if (data['history'] != null) {
+            final history = data['history'] as Map<dynamic, dynamic>;
+            history2pm = history['2pm']?.toString() ?? '9-5-2';
+            history5pm = history['5pm']?.toString() ?? '4-7-1';
+            history9pm = history['9pm']?.toString() ?? '3-0-8';
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -89,9 +97,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void generateNumbers(String strategy, String game) {
+  void generateNumbers() {
     final random = Random();
-    List<int> pool = hotNumbersPool[game] ?? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     setState(() {
       generatedNumbers = List.generate(3, (_) => pool[random.nextInt(pool.length)]);
     });
@@ -109,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Icon(Icons.target, color: Colors.redAccent, size: 20),
+                Icon(Icons.track_changes, color: Colors.redAccent, size: 20),
                 SizedBox(width: 5),
                 Text('LOTTO ASINTADO STRATEGY PRO', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ],
@@ -134,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cloud Monitor Active Card
+                  // Cloud Monitor Active Card (GUMAGALAW NA!)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -153,9 +160,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ],
                         ),
                         const SizedBox(height: 4),
-                        const Text('3D Swertres | May 21, 2026', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        const Text('3D Swertres | Live Update', style: TextStyle(color: Colors.grey, fontSize: 12)),
                         const SizedBox(height: 12),
-                        const Text('1-2-4', style: TextStyle(color: Colors.amber, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4)),
+                        Text(cloudResult, style: const TextStyle(color: Colors.amber, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4)),
                         const SizedBox(height: 4),
                         const Text('Jackpot: P4,500.00', style: TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.w500)),
                       ],
@@ -163,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   const SizedBox(height: 20),
                   
-                  // Previous History Section
+                  // Previous History Section (GUMAGALAW NA RIN!)
                   Row(
                     children: const [
                       Icon(Icons.calendar_month, color: Colors.grey, size: 16),
@@ -174,31 +181,71 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: historyLogsData['3D']!.map((log) {
-                      return Expanded(
+                    children: [
+                      // 2 PM Box
+                      Expanded(
                         child: Container(
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E1E1E),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
                           child: Column(
                             children: [
-                              Text('${log['date']!}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                              const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
                               const SizedBox(height: 4),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                child: Text('${log['time']!}', style: const TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                child: const Text('2 PM', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(height: 8),
-                              Text('${log['result']!}', style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
+                              Text(history2pm, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      // 5 PM Box
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            children: [
+                              const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                child: const Text('5 PM', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(history5pm, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // 9 PM Box
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            children: [
+                              const Text('Today', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                child: const Text('9 PM', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(history9pm, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
 
@@ -237,11 +284,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       generatedNumbers.isEmpty 
                         ? 'Click Generate using Hot Frequency settings' 
                         : generatedNumbers.join(' - '),
-                      style: TextStyle(
-                        color: generatedNumbers.isEmpty ? Colors.grey.shade600 : Colors.amber,
-                        fontSize: generatedNumbers.isEmpty ? 13 : 28,
-                        fontWeight: generatedNumbers.isEmpty ? Navigator.defaultRouteName == '/' ? FontWeight.normal : FontWeight.bold : FontWeight.bold,
-                      ),
+                      style: const TextStyle(color: Colors.amber, fontSize: 28, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -249,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
           
-          // Generate Button at Bottom
+          // Generate Button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
@@ -260,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   backgroundColor: Colors.blueAccent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                onPressed: () => generateNumbers('Hot Frequency', selectedGameFreq),
+                onPressed: generateNumbers,
                 child: const Text('GENERATE VIA Hot Frequency', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
