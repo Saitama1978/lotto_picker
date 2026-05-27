@@ -36,7 +36,6 @@ jobs:
           
           async function run() {
             try {
-              // Ina-update ang live monitor at ang tatlong draw results sa history mo!
               await db.ref('pcso_data/3D/result').set('9-2-5');
               await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
               await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
@@ -52,7 +51,7 @@ jobs:
           "
 
       # =========================================================
-      # BAHAGI 2: PAG-LULUTO NG STABLE FLUTTER APK
+      # BAHAGI 2: PAG-LULUTO NG STABLE FLUTTER APK WITH ICON
       # =========================================================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -83,7 +82,13 @@ jobs:
           rm -f fresh_app/pubspec.yaml
           cp -r lotto_picker/lib fresh_app/
           cp lotto_picker/pubspec.yaml fresh_app/
+          
+          # SIGURADUHING KOPYADO ANG LAHAT NG ASSETS AT LOGO IMAGES
           if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
+          if [ -f "lotto_picker/logo.png" ]; then cp lotto_picker/logo.png fresh_app/; fi
+          if [ -f "lotto_picker/app_icon.png" ]; then cp lotto_picker/app_icon.png fresh_app/; fi
+          if [ -f "logo.png" ]; then cp logo.png fresh_app/; fi
+          if [ -f "app_icon.png" ]; then cp app_icon.png fresh_app/; fi
 
       - name: Inject Firebase Config for Android app
         env:
@@ -97,6 +102,7 @@ jobs:
         run: |
           cd fresh_app
           flutter pub get
+          # Niluto na ang launcher icon mo gamit ang kinopyang larawan
           flutter pub run flutter_launcher_icons:main || true
 
       - name: Build Final Release APK
