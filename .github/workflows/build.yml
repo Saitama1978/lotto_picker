@@ -42,7 +42,7 @@ jobs:
               // Live 2D Data Fallback
               await db.ref('pcso_data/2D/result').set('24-11');
               
-              // Live Grandes Lotto Fallbacks (Para may laman at hindi mag-zero)
+              // Live Grandes Lotto Fallbacks (Para may laman ang 6-42 at iba pa)
               await db.ref('pcso_data/6-42/result').set('08-15-22-29-35-41');
               await db.ref('pcso_data/6-45/result').set('02-12-24-31-39-44');
               
@@ -85,10 +85,10 @@ jobs:
           cp -r lotto_picker/lib fresh_app/
           cp lotto_picker/pubspec.yaml fresh_app/
           
-          # Gumawa ng assets folder sa loob ng kusina
+          # Gumawa ng malinis na assets folder sa loob ng build workspace
           mkdir -p fresh_app/assets
           
-          # Hahakutin at puwersahang ilalagay ang logo mo sa loob ng asset directory
+          # Hahakutin ang logo mula sa orihinal mong repositoryo
           if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets/* fresh_app/assets/ 2>/dev/null || true; fi
           find lotto_picker -name "*.png" -exec cp {} fresh_app/assets/logo.png \; 2>/dev/null || true
           cp fresh_app/assets/logo.png fresh_app/assets/launcher_icon.png 2>/dev/null || true
@@ -101,8 +101,10 @@ jobs:
             echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
           fi
 
-      - name: Force Overwrite Launcher Icon Configuration
+      # 🧹 ANTI-DUPLICATE CLEANER: Tinatanggal muna ang lumang duplicate lines bago isaksak ang bago
+      - name: Clean and Force Overwrite Launcher Icon Configuration
         run: |
+          sed -i '/flutter_launcher_icons:/,$d' fresh_app/pubspec.yaml
           cat << 'EOF' >> fresh_app/pubspec.yaml
 
           flutter_launcher_icons:
