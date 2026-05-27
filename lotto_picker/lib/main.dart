@@ -6,9 +6,7 @@ import 'dart:math';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // 💡 TAMA AT AUTOMATIC WAY: 
-    // Hahayaan natin ang Flutter na basahin ang google-services.json mo!
-    // Tinanggal na natin ang mga pekeng AIzaSy keys para pumasok ang totoong account mo.
+    // Awtomatikong babasahin ang google-services.json mo
     await Firebase.initializeApp();
   } catch (e) {
     print("⚠️ Offline mode / Firebase Init Error: $e");
@@ -66,12 +64,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // Live Listener galing sa Cloud Firestore
   void _listenToFirestore(String game) {
-    // 💡 PARA SAFE: Titingnan muna natin sa 'pcso_data' collection.
     FirebaseFirestore.instance.collection('pcso_data').doc(game).snapshots().listen((snapshot) {
       if (!mounted) return;
       
       if (!snapshot.exists) {
-        // 💡 KUNG WALA SA 'pcso_data', SUSUBUKAN NAMAN NIYA SA 'results' COLLECTION MO PARA SIGURADO!
         _checkBackupCollection(game);
         return;
       }
@@ -80,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
   }
 
-  // Backup checker para kung saang folder man pumasok ang data mo, huli pa rin!
+  // Backup checker para sa 'results' collection mo
   void _checkBackupCollection(String game) {
     FirebaseFirestore.instance.collection('results').doc(game).snapshots().listen((snapshot) {
       if (!mounted || !snapshot.exists) {
@@ -198,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Icon(Icons.cloud_done, color: Colors.green, size: 16),
-                            SAuthorizedSizedBox(width: 5),
+                            SizedBox(width: 5), // NAITAMA NA! Tinanggal na ang "SAuthorized" typo
                             Text('FIRESTORE MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
