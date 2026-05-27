@@ -11,48 +11,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Firebase Admin
+      - name: Install Dependencies
         run: npm install firebase-admin
 
-      # Dito natin isusulat nang maayos ang script sa isang hiwalay na file bago patakbuhin
-      - name: Run Update Script
+      - name: Run Database Update
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
           echo "$FIREBASE_KEY" > serviceAccountKey.json
-          
-          cat << 'EOF' > update_script.js
-          const admin = require("firebase-admin");
-          const serviceAccount = require("./serviceAccountKey.json");
+          node -e "
+          const admin = require('firebase-admin');
+          const serviceAccount = require('./serviceAccountKey.json');
           
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
-            databaseURL: "https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app"
+            databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app'
           });
           
           const db = admin.database();
           
-          // Diretsong pagsusulat sa database nodes mo
-          async function startUpdate() {
+          async function run() {
             try {
-              await db.ref("pcso_data/3D/result").set("9-2-5");
-              await db.ref("pcso_data/3D/history/2pm").set("9-5-2");
-              await db.ref("pcso_data/3D/history/5pm").set("4-7-1");
-              await db.ref("pcso_data/3D/history/9pm").set("3-0-8");
-              console.log("Solid! Tagumpay ang pag-update sa Cloud at History!");
+              await db.ref('pcso_data/3D/result').set('9-2-5');
+              await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
+              await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
+              await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
+              console.log('Solid ang update!');
               process.exit(0);
-            } catch (error) {
-              console.error("May sumabit sa database update:", error);
+            } catch(e) {
+              console.error(e);
               process.exit(1);
             }
           }
-          
-          startUpdate();
-          EOF
-          
-          node update_script.js
+          run();
+          "
