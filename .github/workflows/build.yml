@@ -37,7 +37,7 @@ jobs:
               await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
               await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
               await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
-              console.log('Firebase Updated Successfully');
+              console.log('Firebase Updated!');
               process.exit(0);
             } catch(e) {
               console.error(e);
@@ -48,7 +48,7 @@ jobs:
           "
 
       # =========================================================
-      # BAHAGI 2: DIRETSONG APK COMPILATION SA 'LOTTO_PICKER'
+      # BAHAGI 2: GENERATE FRESH APP PARA MAKAIWAS SA V2 EMBEDDING ERROR
       # =========================================================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -61,39 +61,57 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Dito natin isasaksak ang google-services.json sa loob mismo ng android/app mo
+      # Gagawa ng bagong malinis na android embedding structure
+      - name: Generate Fresh Flutter App Framework
+        run: |
+          flutter create --platforms android fresh_app
+
+      - name: Configure Android SDK Version for Firebase
+        run: |
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
+          sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
+
+      - name: Fix Target Icon Code Bug
+        run: |
+          sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
+
+      # HAHAKUTIN AT PAGSASAMAHIN ANG CODE AT LAHAT NG POSIBLENG LOGO/ICON FILES
+      - name: Merge Source Code and Logo Assets
+        run: |
+          rm -f fresh_app/pubspec.yaml
+          cp -r lotto_picker/lib fresh_app/
+          cp lotto_picker/pubspec.yaml fresh_app/
+          
+          # Kopya ng Assets Folder kung mayroon
+          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
+          
+          # Hahanapin at kokopyahin ang mga image files kung nasa labas
+          find lotto_picker -name "*.png" -exec cp {} fresh_app/ \; 2>/dev/null || true
+          find . -maxdepth 1 -name "*.png" -exec cp {} fresh_app/ \; 2>/dev/null || true
+
+      # ISAKSAK ANG KONEKSYON SA DATABASE NG APP
       - name: Inject Firebase Google Services JSON
         env:
           GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ ! -z "$GOOGLE_SERVICES" ]; then
-            echo "$GOOGLE_SERVICES" > lotto_picker/android/app/google-services.json
+            echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
           fi
 
-      # Pinipilit nating baguhin ang minSdkVersion sa orihinal mong folder para hindi mag-error sa Firebase
-      - name: Force Fix Android MinSdkVersion
+      # LUTUIN ANG LAUNCHER ICON GAMIT ANG HINAKOT NA ATTRIBUTES
+      - name: Build Flutter Launcher Icons
         run: |
-          if [ -f "lotto_picker/android/app/build.gradle" ]; then
-            sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' lotto_picker/android/app/build.gradle
-            sed -i 's/flutter.minSdkVersion/21/g' lotto_picker/android/app/build.gradle
-          fi
-
-      - name: Fix Target Icon Code Bug
-        run: |
-          if [ -f "lotto_picker/lib/main.dart" ]; then
-            sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
-          fi
-
-      # Dito na gagawin ang pagluluto ng Icon at pag-build ng APK sa tamang folder
-      - name: Build Flutter Launcher Icons & APK
-        run: |
-          cd lotto_picker
+          cd fresh_app
           flutter pub get
           flutter pub run flutter_launcher_icons:main || true
+
+      - name: Build Final Release APK
+        run: |
+          cd fresh_app
           flutter build apk --release
 
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
           name: Lotto-Asintado-Release-APK
-          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
+          path: fresh_app/build/app/outputs/flutter-apk/app-release.apk
