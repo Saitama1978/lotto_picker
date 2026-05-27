@@ -1,14 +1,15 @@
-name: Build and Auto-Sync Lotto App
+name: Auto-Sync Lotto Scraper to Firestore
 
 on:
   push:
     branches:
       - main
   schedule:
+    # ⏱️ TATAKBO KUSA GABI-GABI: Tuwing alas-9:30 PM ng gabi (Philippine Time)
     - cron: '30 13 * * *'
 
 jobs:
-  build:
+  sync_database:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +21,7 @@ jobs:
         with:
           node-version: '18'
 
-      # ✅ PASADO AT GREEN CHECK NA ITO, BOSS!
+      # 🔥 DITO DIRETSONG MAG-A-UPDATE ANG FIRESTORE MO NANG WALANG ANDROID CORES
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -28,28 +29,3 @@ jobs:
           cd lotto_picker
           npm install firebase-admin axios
           node scraper.js
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '12.x'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          flutter-version: '3.19.0'
-
-      # 🛠️ DITO NATIN PINILIT AT BINYPASS ANG OLD EMBEDDING NG ANDROID
-      - name: Install Dependencies and Build APK
-        run: |
-          cd lotto_picker
-          flutter pub get
-          flutter build apk --release --no-pub --no-shrink
-          
-      - name: Upload Final APK Product
-        uses: actions/upload-artifact@v4
-        with:
-          name: PH-Lotto-Asintado-Pro
-          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
