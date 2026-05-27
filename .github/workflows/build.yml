@@ -31,9 +31,10 @@ jobs:
       - name: Auto-Fix Pubspec Dependencies
         run: |
           cd lotto_picker
-          # Papalitan natin ng "any" ang firebase_core at firebase_core_web para si Flutter na ang mamili ng compatible version
+          # Papalitan natin ng "any" ang LAHAT ng Firebase at integration packages para magkaayos sila ng Flutter
           sed -i 's/firebase_core:.*/firebase_core: any/g' pubspec.yaml
           sed -i 's/firebase_core_web:.*/firebase_core_web: any/g' pubspec.yaml
+          sed -i 's/firebase_database:.*/firebase_database: any/g' pubspec.yaml
 
       - name: Install dependencies
         run: |
