@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'dart:math';
 
 void main() async {
@@ -13,7 +13,6 @@ void main() async {
         appId: '1:458447298380:android:308fd26da180954e40b9e9',
         messagingSenderId: '458447298380',
         storageBucket: 'lotto-asintado.appspot.com',
-        databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app', 
       ),
     );
   } catch (e) {
@@ -48,15 +47,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _strategyTabController;
-  final DatabaseReference _dbRootRef = FirebaseDatabase.instance.ref('pcso_data');
   
   final List<String> strategies = ['Hot Frequency', 'Odd/Even Balance', 'High/Low Range'];
-  final List<String> lottoGames = ['3D', '2D', '6-42', '6-45', '6-49', '6-55', '6-58'];
+  
+  // 🎯 KUMPLETONG LISTAHAN NG LARO: Idinagdag ang 4D at 6D!
+  final List<String> lottoGames = ['3D', '2D', '4D', '6D', '6-42', '6-45', '6-49', '6-55', '6-58'];
   
   String selectedGameFreq = '3D'; 
   List<int> generatedNumbers = [];
 
-  // Live Firebase Map states
+  // Live Screen Map states
   String cloudResult = "9-2-5";
   String history2pm = "9-5-2";
   String history5pm = "4-7-1";
@@ -68,39 +68,59 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _strategyTabController = TabController(length: strategies.length, vsync: this);
-    _listenToFirebase(selectedGameFreq);
+    _listenToFirestore(selectedGameFreq);
   }
 
-  // Live data trigger kapag nagpalit ng laro sa dropdown!
-  void _listenToFirebase(String game) {
-    _dbRootRef.child(game).onValue.listen((DatabaseEvent event) {
+  // Live Listener galing sa Cloud Firestore
+  void _listenToFirestore(String game) {
+    FirebaseFirestore.instance.collection('pcso_data').doc(game).snapshots().listen((snapshot) {
       if (!mounted) return;
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      
       setState(() {
+        if (!snapshot.exists) {
+          // Kung wala pang data sa Firestore para sa napiling laro, maglalagay ng default zeros
+          gameName = game.contains('-') ? "$game Lotto" : "$game Game";
+          jackpotPrize = "Milyong Piso Jackpot";
+          if (game == '2D') { cloudResult = "00-00"; jackpotPrize = "P4,000.00"; }
+          else if (game == '4D') { cloudResult = "0-0-0-0"; jackpotPrize = "P10,000.00+"; }
+          else if (game == '6D') { cloudResult = "0-0-0-0-0-0"; jackpotPrize = "P150,000.00+"; }
+          else { cloudResult = "00-00-00-00-00-00"; }
+          return;
+        }
+
+        final data = snapshot.data();
+        
         if (game == '3D') {
           gameName = "3D Swertres";
           jackpotPrize = "P4,500.00";
-          cloudResult = data?['result']?.toString() ?? '9-2-5';
-          if (data?['history'] != null) {
-            final history = data?['history'] as Map<dynamic, dynamic>;
-            history2pm = history['2pm']?.toString() ?? '9-5-2';
-            history5pm = history['5pm']?.toString() ?? '4-7-1';
-            history9pm = history['9pm']?.toString() ?? '3-0-8';
-          }
+          cloudResult = (data?['result'] ?? '9-2-5').toString();
+          
+          // Pagkuha ng history fields galing sa document mo
+          history2pm = (data?['2pm'] ?? data?['history_2pm'] ?? '9-5-2').toString();
+          history5pm = (data?['5pm'] ?? data?['history_5pm'] ?? '4-7-1').toString();
+          history9pm = (data?['9pm'] ?? data?['history_9pm'] ?? '3-0-8').toString();
         } else if (game == '2D') {
           gameName = "2D Lotto";
           jackpotPrize = "P4,000.00";
-          cloudResult = data?['result']?.toString() ?? '24-11';
+          cloudResult = (data?['result'] ?? '24-11').toString();
+        } else if (game == '4D') {
+          gameName = "4D Lotto";
+          jackpotPrize = "Minimum P10,000.00";
+          cloudResult = (data?['result'] ?? '1-2-3-4').toString();
+        } else if (game == '6D') {
+          gameName = "6D Lotto";
+          jackpotPrize = "Minimum P150,000.00";
+          cloudResult = (data?['result'] ?? '1-2-3-4-5-6').toString();
         } else {
           gameName = "$game Lotto";
           jackpotPrize = "Milyong Piso Jackpot";
-          cloudResult = data?['result']?.toString() ?? '00-00-00-00-00-00';
+          cloudResult = (data?['result'] ?? '00-00-00-00-00-00').toString();
         }
       });
     });
   }
 
-  // Dynamic Generator base sa piniling laro!
+  // Dynamic Generator para sa lahat ng laro kasama 4D at 6D!
   void generateNumbers() {
     final random = Random();
     setState(() {
@@ -109,7 +129,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         generatedNumbers = List.generate(3, (_) => pool[random.nextInt(pool.length)]);
       } else if (selectedGameFreq == '2D') {
         generatedNumbers = List.generate(2, (_) => random.nextInt(31) + 1);
+      } else if (selectedGameFreq == '4D') {
+        // 4-Digit Game: Nakakakuha ng 4 numbers mula 0 hanggang 9
+        generatedNumbers = List.generate(4, (_) => random.nextInt(10));
+      } else if (selectedGameFreq == '6D') {
+        // 6-Digit Game: Nakakakuha ng 6 numbers mula 0 hanggang 9
+        generatedNumbers = List.generate(6, (_) => random.nextInt(10));
       } else {
+        // Para sa mga malalaking laro (6-42, 6-45, etc.) - 6 non-repeating sorted numbers
         int maxNumber = int.parse(selectedGameFreq.split('-')[1]);
         Set<int> numbersSet = {};
         while (numbersSet.length < 6) {
@@ -132,7 +159,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                // PINALITAN NG SIGURADONG GAGANANG ICONS (WALA NANG KAHON NA MAY EKIS)
                 Icon(Icons.adjust, color: Colors.redAccent, size: 20),
                 SizedBox(width: 5),
                 Text('LOTTO ASINTADO STRATEGY PRO', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -158,27 +184,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cloud Monitor Active Card
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(16)),
                     child: Column(
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
-                            // PINALITAN NG STANDARD ICON PARA SAFE
                             Icon(Icons.cloud_done, color: Colors.green, size: 16),
                             SizedBox(width: 5),
-                            Text('CLOUD MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('FIRESTORE MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text('$gameName | Live Update', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text('$gameName | Live Data', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                         const SizedBox(height: 12),
                         Text(cloudResult, style: const TextStyle(color: Colors.amber, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 2)),
                         const SizedBox(height: 4),
@@ -188,7 +209,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   const SizedBox(height: 20),
                   
-                  // Previous History Section (Makikita lang kapag 3D ang pinili para malinis)
                   if (selectedGameFreq == '3D') ...[
                     Row(
                       children: const [
@@ -209,7 +229,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     const SizedBox(height: 20),
                   ],
 
-                  // Target Draw Selector Card
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
@@ -222,7 +241,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         value: selectedGameFreq,
                         isExpanded: true,
                         dropdownColor: const Color(0xFF1E1E1E),
-                        // TINANGGAL ANG DESIGN ICON NA SUMISIRA SA SCREEN
                         items: lottoGames.map((String game) {
                           return DropdownMenuItem<String>(
                             value: game,
@@ -233,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           setState(() {
                             selectedGameFreq = value!;
                             generatedNumbers = []; 
-                            _listenToFirebase(selectedGameFreq); 
+                            _listenToFirestore(selectedGameFreq); 
                           });
                         },
                       ),
@@ -241,7 +259,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   const SizedBox(height: 40),
                   
-                  // Result Display Center Text
                   Center(
                     child: Text(
                       generatedNumbers.isEmpty 
@@ -259,8 +276,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
           ),
-          
-          // Generate Button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
