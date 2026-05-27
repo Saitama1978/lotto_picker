@@ -26,7 +26,13 @@ jobs:
         run: |
           flutter create --platforms android fresh_app
 
-      # MAGIC FIX: Pinapalitan ang maling Icons.target bago ilipat sa fresh_app
+      # HAKBANG 1: Awtomatikong itataas ang minSdkVersion sa 21 para tanggapin ng Firebase Database
+      - name: Configure Android SDK Version for Firebase
+        run: |
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
+          sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
+
+      # HAKBANG 2: Ayusin ang maling icon code bago i-merge
       - name: Fix Target Icon Syntax Error
         run: |
           sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
