@@ -6,10 +6,18 @@ import 'dart:math';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // Awtomatikong babasahin ang google-services.json mo
-    await Firebase.initializeApp();
+    // 🎯 IBINALIK ANG TANGING SUSI PARA HINDI MAG-WHITE SCREEN:
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
+        projectId: 'lotto-asintado',
+        appId: '1:458447298380:android:308fd26da180954e40b9e9',
+        messagingSenderId: '458447298380',
+        storageBucket: 'lotto-asintado.appspot.com',
+      ),
+    );
   } catch (e) {
-    print("⚠️ Offline mode / Firebase Init Error: $e");
+    print("⚠️ Firebase Init Error: $e");
   }
   runApp(const LottoAsintadoApp());
 }
@@ -194,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Icon(Icons.cloud_done, color: Colors.green, size: 16),
-                            SizedBox(width: 5), // NAITAMA NA! Tinanggal na ang "SAuthorized" typo
+                            SizedBox(width: 5),
                             Text('FIRESTORE MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
