@@ -11,7 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Siguraduhing Java 17 ang gamit para sa modernong Gradle
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -23,26 +22,27 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # HAKBANG 1: Gumawa ng bagong malinis na app sa tabi ng repository mo
       - name: Generate Fresh Flutter App
         run: |
           flutter create --platforms android fresh_app
 
-      # HAKBANG 2: Ilipat ang mga Dart files, code, at pubspec mo sa loob ng bagong app
+      # MAGIC FIX: Pinapalitan ang maling Icons.target bago ilipat sa fresh_app
+      - name: Fix Target Icon Syntax Error
+        run: |
+          sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
+
       - name: Merge Source Code to Fresh App
         run: |
           rm -f fresh_app/pubspec.yaml
           cp -r lotto_picker/lib fresh_app/
           cp lotto_picker/pubspec.yaml fresh_app/
 
-      # HAKBANG 3: I-build na ang APK gamit ang bagong malinis na Gradle project
       - name: Install dependencies & Build APK
         run: |
           cd fresh_app
           flutter pub get
           flutter build apk --release
 
-      # HAKBANG 4: I-upload ang pinal na natapos na file
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
