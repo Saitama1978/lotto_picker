@@ -22,12 +22,19 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
+      # HAKBANG 1: Linisin ang natitirang luma o sirang cache ng dependencies
+      - name: Clean Project
+        run: |
+          cd lotto_picker
+          flutter clean
+
+      # HAKBANG 2: Pagkuha ng malinis na bersyon ng mga packages
       - name: Install dependencies
         run: |
           cd lotto_picker
           flutter pub get
 
-      # DITO ANG MAGIC CHANGE: Idinagdag ang --no-validate-project
+      # HAKBANG 3: Dito na natin pipilitin ang compiler na laktawan ang validation checks
       - name: Build APK
         run: |
           cd lotto_picker
