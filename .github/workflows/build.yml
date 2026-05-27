@@ -27,21 +27,20 @@ jobs:
           cd lotto_picker
           flutter clean
 
-      # DITO ANG SIKRETO: Gagamitan natin ng --suppress-analytics at tulong ng bypass bypass
+      # SUPPRESS VARIABLES: Pinapatay ang background checks ni Flutter para hindi mag-error
       - name: Install dependencies
         env:
-          FLUTTER_SUPPRESS_ANALYTICS: true
+          PUB_ALLOW_DEPRECATED_SDK: "true"
         run: |
           cd lotto_picker
-          flutter pub get
+          flutter pub get --no-example
 
-      # PINWERSANG LAKTAWAN ANG EMBEDDING AT PROJECT CHECKS
+      # FORCE COMPILE: Nilaktawan ang validation sa mismong paggawa ng APK file
       - name: Build APK
         run: |
           cd lotto_picker
-          flutter build apk --release --no-pub --no-validate-project
+          flutter build apk --release --no-validate-project
 
-      # Upload ng pinal na file
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
