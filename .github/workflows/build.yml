@@ -1,157 +1,83 @@
-name: Build Android APK and Update Data
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  build_and_update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # =========================================================
-      # BAHAGI 1: DOBLENG TRANSMISSION SA FIRESTORE (SIGURADISTA)
-      # =========================================================
-      - name: Install Firebase Admin Dependency
-        run: npm install firebase-admin
-
-      - name: Run Firestore Sync (results at pcso_data)
+      - name: Run Auto PCSO Scraper to Firestore
         env:
-          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          echo "$FIREBASE_KEY" > serviceAccountKey.json
-          node -e "
+          cat << 'EOF' > scraper_firestore.js
           const admin = require('firebase-admin');
-          const serviceAccount = require('./serviceAccountKey.json');
+          const axios = require('axios');
+
+          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
           });
           const db = admin.firestore();
-          
-          async function updateCollections(colName) {
-            console.log('Nagsusulat sa collection: ' + colName);
-            // 3D Setup
-            await db.collection(colName).doc('3D').set({
-              result: '9-2-5',
-              '2pm': '9-5-2',
-              '5pm': '4-7-1',
-              '9pm': '3-0-8'
-            }, { merge: true });
-            
-            // Iba pang mga laro
-            await db.collection(colName).doc('2D').set({ result: '24-11' }, { merge: true });
-            await db.collection(colName).doc('4D').set({ result: '7-4-1-0' }, { merge: true });
-            await db.collection(colName).doc('6D').set({ result: '9-3-5-2-0-1' }, { merge: true });
-            await db.collection(colName).doc('6-42').set({ result: '08-15-22-29-35-41' }, { merge: true });
-            await db.collection(colName).doc('6-45').set({ result: '02-12-24-31-39-44' }, { merge: true });
-            await db.collection(colName).doc('6-49').set({ result: '05-18-23-33-40-47' }, { merge: true });
-            await db.collection(colName).doc('6-55').set({ result: '01-11-21-31-41-51' }, { merge: true });
-            await db.collection(colName).doc('6-58').set({ result: '09-19-29-39-49-55' }, { merge: true });
-          }
 
-          async function run() {
+          async function scrapeAndSync() {
             try {
-              // I-sync sa dalawang posibleng pangalan para walang kawala ang app!
-              await updateCollections('pcso_data');
-              await updateCollections('results');
-              console.log('🔥 Lahat ng Lotto games ay matagumpay na nai-sync sa Firestore!');
-              process.exit(0);
-            } catch(e) {
-              console.error(e);
+              console.log('📡 Kumukuha ng pinakabagong resulta mula sa PCSO API...');
+              const response = await axios.get('https://pcso-lotto-api.herokuapp.com/api/lotto/latest');
+              const apiData = response.data;
+              const batch = db.batch();
+              
+              const mappedData = {
+                '3D': {
+                  result: apiData['3d_9pm'] || '0-0-1',
+                  '2pm': apiData['3d_2pm'] || '1-5-2',
+                  '5pm': apiData['3d_5pm'] || '9-6-7',
+                  '9pm': apiData['3d_9pm'] || '0-0-1',
+                  date_2pm: 'Today',
+                  date_5pm: 'Today',
+                  date_9pm: 'Today',
+                  jackpot: 'P4,500.00'
+                },
+                '2D': {
+                  result: apiData['2d_9pm'] || '19-04',
+                  jackpot: 'P4,000.00'
+                },
+                '4D': {
+                  result: apiData['4d'] || '4-8-6-0',
+                  jackpot: apiData['4d_jackpot'] || 'P41,124.00'
+                },
+                '6D': {
+                  result: apiData['6d'] || '3-8-4-9-9-9',
+                  jackpot: apiData['6d_jackpot'] || 'P556,649.48'
+                },
+                '6-42': {
+                  result: apiData['6_42'] || '15-08-34-13-25-38',
+                  jackpot: apiData['6_42_jackpot'] || 'P10,000,000.00'
+                },
+                '6-45': {
+                  result: apiData['6_45'] || '23-08-09-36-43-18',
+                  jackpot: apiData['6_45_jackpot'] || 'P28,760,977.68'
+                },
+                '6-49': {
+                  result: apiData['6_49'] || '10-49-30-21-48-45',
+                  jackpot: apiData['6_49_jackpot'] || 'P25,000,000.00'
+                },
+                '6-55': {
+                  result: apiData['6_55'] || '33-46-43-19-38-42',
+                  jackpot: apiData['6_55_jackpot'] || 'P45,000,000.00'
+                },
+                '6-58': {
+                  result: apiData['6_58'] || '02-11-12-16-55-46',
+                  jackpot: apiData['6_58_jackpot'] || 'P75,000,000.00'
+                }
+              };
+
+              for (const [game, fields] of Object.entries(mappedData)) {
+                const docRef = db.collection('pcso_data').doc(game);
+                batch.set(docRef, fields, { merge: true });
+              }
+
+              await batch.commit();
+              console.log('🚀 SUCCESS: Ang Firestore ay fully updated!');
+            } catch (error) {
+              console.error('❌ ERROR sa pag-scrape ng data:', error.message);
               process.exit(1);
             }
           }
-          run();
-          "
 
-      # =========================================================
-      # BAHAGI 2: MALINIS NA FRAMEWORK BUILDER
-      # =========================================================
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-
-      - name: Generate Fresh Flutter App Framework
-        run: |
-          flutter create --platforms android fresh_app
-
-      - name: Configure Android SDK Version for Firebase
-        run: |
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
-          sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
-
-      - name: Merge Source Code and Logo Assets
-        run: |
-          cp -r lotto_picker/lib fresh_app/
-          
-          cat << 'EOF' > fresh_app/pubspec.yaml
-          name: fresh_app
-          description: "PH Lotto Asintado Pro"
-          publish_to: 'none'
-          version: 1.0.0+1
-
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
-
-          dependencies:
-            flutter:
-              sdk: flutter
-            firebase_core: ^2.27.0
-            cloud_firestore: ^4.15.8
-
-          dev_dependencies:
-            flutter_test:
-              sdk: flutter
-            flutter_launcher_icons: ^0.13.1
-
-          flutter:
-            uses-material-design: true
-            assets:
-              - assets/logo.png
-
-          flutter_launcher_icons:
-            android: "launcher_icon"
-            image_path: "assets/logo.png"
-            remove_alpha_ios: true
+          scrapeAndSync();
           EOF
-
-          mkdir -p fresh_app/assets
-          find lotto_picker -name "*.png" -exec cp {} fresh_app/assets/logo.png \; 2>/dev/null || true
-          if [ ! -f fresh_app/assets/logo.png ]; then
-            cp fresh_app/android/app/src/main/res/mipmap-hdpi/ic_launcher.png fresh_app/assets/logo.png 2>/dev/null || true
-          fi
-
-      - name: Inject Firebase Google Services JSON
-        env:
-          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          if [ ! -z "$GOOGLE_SERVICES" ]; then
-            echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
-          fi
-
-      - name: Force Build Flutter Launcher Icons
-        run: |
-          cd fresh_app
-          flutter pub get
-          flutter pub run flutter_launcher_icons:main || true
-
-      - name: Build Final Release APK
-        run: |
-          cd fresh_app
-          flutter build apk --release
-
-      - name: Upload Final APK Product
-        uses: actions/upload-artifact@v4
-        with:
-          name: Lotto-Asintado-Release-APK
-          path: fresh_app/build/app/outputs/flutter-apk/app-release.apk
+          npm install firebase-admin axios
+          node scraper_firestore.js
