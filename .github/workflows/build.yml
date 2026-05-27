@@ -1,68 +1,52 @@
-name: Build Android APK
+name: Lotto Auto Update
 
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    # Tatakbo awtomatiko araw-araw pagkatapos ng huling draw
+    - cron: '0 14 * * *'
+  workflow_dispatch: # Para pwede mong pindutin nang manu-mano kahit anong oras
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-
-      - name: Generate Fresh Flutter App
-        run: |
-          flutter create --platforms android fresh_app
-
-      - name: Configure Android SDK Version for Firebase
-        run: |
-          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
-          sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
-
-      - name: Fix Target Icon Syntax Error
-        run: |
-          sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
-
-      - name: Merge Source Code to Fresh App
-        run: |
-          rm -f fresh_app/pubspec.yaml
-          cp -r lotto_picker/lib fresh_app/
-          cp lotto_picker/pubspec.yaml fresh_app/
-          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
-
-      - name: Inject Firebase Config
+      - name: Update Firebase Data and History
         env:
-          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
-          if [ ! -z "$GOOGLE_SERVICES" ]; then
-            echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
-          fi
-
-      - name: Generate App Launcher Icons
-        run: |
-          cd fresh_app
-          flutter pub get
-          flutter pub run flutter_launcher_icons:main || true
-
-      - name: Build APK
-        run: |
-          cd fresh_app
-          flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Lotto-Asintado-Release-APK
-          path: fresh_app/build/app/outputs/flutter-apk/app-release.apk
+          # 1. I-extract ang Firebase key galing sa iyong Repository Secrets
+          echo "$FIREBASE_KEY" > serviceAccountKey.json
+          
+          # 2. I-install ang kailangang Firebase tool
+          npm install firebase-admin
+          
+          # 3. Tatakbo ang Node.js para piliting baguhin ang live cloud at ang history entries
+          node -e '
+          const admin = require("firebase-admin");
+          const serviceAccount = require("./serviceAccountKey.json");
+          
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            databaseURL: "https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app"
+          });
+          
+          const db = admin.database();
+          
+          // DITO ANG MAGIC: Ina-update natin ang main result pati ang tatlong draw times para sa History!
+          const updates = {
+            "pcso_data/3D/result": "9-2-5",
+            "pcso_data/3D/history/2pm": "9-5-2",
+            "pcso_data/3D/history/5pm": "4-7-1",
+            "pcso_data/3D/history/9pm": "3-0-8"
+          };
+          
+          db.ref().update(updates)
+            .then(() => {
+              console.log("Solid! Tagumpay ang pag-update sa Cloud at History!");
+              process.exit(0);
+            })
+            .catch((error) => {
+              console.error("May sumabit sa database update:", error);
+              process.exit(1);
+            });
+          '
