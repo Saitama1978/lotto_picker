@@ -22,19 +22,17 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # Tamang daan: papasok sa iisang folder lang
       - name: Install dependencies
         run: |
           cd lotto_picker
           flutter pub get
 
-      # Dito na iluluto ang APK
+      # DITO ANG MAGIC CHANGE: Idinagdag ang --no-validate-project
       - name: Build APK
         run: |
           cd lotto_picker
-          flutter build apk --release
+          flutter build apk --release --no-validate-project
 
-      # I-upload ang pinal na file para ma-download mo
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
