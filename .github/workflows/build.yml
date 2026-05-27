@@ -11,6 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Siguraduhing Java 17 ang gamit para sa modernong Gradle
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -22,29 +23,28 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      - name: Recreate Android Project Folder
+      # HAKBANG 1: Gumawa ng bagong malinis na app sa tabi ng repository mo
+      - name: Generate Fresh Flutter App
         run: |
-          cd lotto_picker
-          flutter create --platforms android .
+          flutter create --platforms android fresh_app
 
-      - name: Clean Project
+      # HAKBANG 2: Ilipat ang mga Dart files, code, at pubspec mo sa loob ng bagong app
+      - name: Merge Source Code to Fresh App
         run: |
-          cd lotto_picker
-          flutter clean
+          rm -f fresh_app/pubspec.yaml
+          cp -r lotto_picker/lib fresh_app/
+          cp lotto_picker/pubspec.yaml fresh_app/
 
-      - name: Install dependencies
+      # HAKBANG 3: I-build na ang APK gamit ang bagong malinis na Gradle project
+      - name: Install dependencies & Build APK
         run: |
-          cd lotto_picker
+          cd fresh_app
           flutter pub get
-
-      # TINANGGAL NA ANG MAKULIT NA FLAG PARA DIRETSO BUILD NA
-      - name: Build APK
-        run: |
-          cd lotto_picker
           flutter build apk --release
 
+      # HAKBANG 4: I-upload ang pinal na natapos na file
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Lotto-Asintado-Release-APK
-          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
+          path: fresh_app/build/app/outputs/flutter-apk/app-release.apk
