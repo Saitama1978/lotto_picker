@@ -1,1 +1,57 @@
+name: Build Android APK
 
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      # HAKBANG 1: Awtomatikong ipapasok ng script ang V2 embedding text sa Android folder mo
+      - name: Auto Migrate to Android V2 Embedding
+        run: |
+          cd lotto_picker
+          # Pag-update ng AndroidManifest.xml para tanggapin ang V2
+          sed -i '/<meta-data android:name="io.flutter.embedding.android.SplashScreenDrawable"/i \        <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme"/>' android/app/src/main/AndroidManifest.xml
+          
+          # Pag-overwrite sa MainActivity para gumamit ng modernong FlutterActivity class
+          echo "package com.example.lotto_picker;" > android/app/src/main/kotlin/com/example/lotto_picker/MainActivity.kt
+          echo "import io.flutter.embedding.android.FlutterActivity" >> android/app/src/main/kotlin/com/example/lotto_picker/MainActivity.kt
+          echo "class MainActivity: FlutterActivity() {}" >> android/app/src/main/kotlin/com/example/lotto_picker/MainActivity.kt
+
+      - name: Clean Project
+        run: |
+          cd lotto_picker
+          flutter clean
+
+      # HAKBANG 2: Dahil na-update na ang files sa itaas, papasa na ito sa validation!
+      - name: Install dependencies
+        run: |
+          cd lotto_picker
+          flutter pub get
+
+      - name: Build APK
+        run: |
+          cd lotto_picker
+          flutter build apk --release --no-validate-project
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lotto-Asintado-Release-APK
+          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
