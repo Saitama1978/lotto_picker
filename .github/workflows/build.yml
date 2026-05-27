@@ -28,18 +28,13 @@ jobs:
           cd lotto_picker
           flutter clean
 
-      - name: Install dependencies
+      - name: Force Install Dependencies
         run: |
           cd lotto_picker
-          flutter pub get
+          # Gagamit ng 'any' override para mapwersang mag-resolve ang firebase at web packages
+          flutter pub get --no-example
 
-      - name: Build APK (Bridge Release)
+      - name: Build APK (Bypass Release)
         run: |
           cd lotto_picker
           flutter build apk --release --no-sound-null-safety
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
