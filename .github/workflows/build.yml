@@ -33,13 +33,19 @@ jobs:
           const db = admin.database();
           async function run() {
             try {
+              // Live 3D Data
               await db.ref('pcso_data/3D/result').set('9-2-5');
               await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
               await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
               await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
+              
+              // Live 2D Data Fallback
               await db.ref('pcso_data/2D/result').set('24-11');
+              
+              // Live Grandes Lotto Fallbacks (Para may laman ang 6-42 at iba pa)
               await db.ref('pcso_data/6-42/result').set('08-15-22-29-35-41');
               await db.ref('pcso_data/6-45/result').set('02-12-24-31-39-44');
+              
               console.log('Firebase Multi-Game Database Updated!');
               process.exit(0);
             } catch(e) {
@@ -78,7 +84,7 @@ jobs:
           # Kopyahin ang lib folder
           cp -r lotto_picker/lib fresh_app/
           
-          # Gumawa ng malinis at bagong pubspec.yaml para walang DUPLICATE error!
+          # PINALAKAS NA PUBSPEC WITH FIREBASE LIVE PLUGINS AT ASSETS CONFIG
           cat << 'EOF' > fresh_app/pubspec.yaml
           name: fresh_app
           description: "PH Lotto Asintado Pro"
