@@ -26,13 +26,11 @@ jobs:
         run: |
           flutter create --platforms android fresh_app
 
-      # HAKBANG 1: Awtomatikong itataas ang minSdkVersion sa 21 para tanggapin ng Firebase Database
       - name: Configure Android SDK Version for Firebase
         run: |
           sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
           sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
 
-      # HAKBANG 2: Ayusin ang maling icon code bago i-merge
       - name: Fix Target Icon Syntax Error
         run: |
           sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
@@ -42,13 +40,32 @@ jobs:
           rm -f fresh_app/pubspec.yaml
           cp -r lotto_picker/lib fresh_app/
           cp lotto_picker/pubspec.yaml fresh_app/
+          # Kung may assets folder ka para sa logo, isama natin dito:
+          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
 
-      - name: Install dependencies & Build APK
+      # KONEKSYON: Dito ipapasok ang Firebase credentials para makakonekta sa live database
+      - name: Inject Firebase Config
+        env:
+          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ ! -z "$GOOGLE_SERVICES" ]; then
+            echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
+          fi
+
+      # ICON COOKER: Awtomatikong bubuuin ang icon ng app mo kung naka-configure sa pubspec
+      - name: Generate App Launcher Icons
         run: |
           cd fresh_app
           flutter pub get
+          # Tatakbo lang ito kung may configuration ka ng flutter_launcher_icons sa pubspec.yaml
+          flutter pub run flutter_launcher_icons:main || true
+
+      - name: Build APK
+        run: |
+          cd fresh_app
           flutter build apk --release
 
+       Dagdag na hakbang: I-upload din ang google-services para sa debug kung kailangan
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
