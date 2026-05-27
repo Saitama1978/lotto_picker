@@ -33,7 +33,7 @@ jobs:
           cd lotto_picker
           flutter pub get
 
-      - name: Build APK (Force Release)
+      - name: Build APK (Force V2 and Release)
         run: |
           cd lotto_picker
-          flutter build apk --release --no-sound-null-safety
+          flutter build apk --release --no-sound-null-safety --pub
