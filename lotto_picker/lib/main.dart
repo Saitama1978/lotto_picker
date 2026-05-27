@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_database/firebase_database.dart'; // 👈 Binalik sa Realtime Database
 import 'dart:math';
 
 void main() async {
@@ -10,6 +10,7 @@ void main() async {
       options: const FirebaseOptions(
         apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
         projectId: 'lotto-asintado',
+        databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app', // 👈 Ikinabit sa Realtime URL mo
         appId: '1:458447298380:android:308fd26da180954e40b9e9',
         messagingSenderId: '458447298380',
         storageBucket: 'lotto-asintado.appspot.com',
@@ -60,7 +61,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String history5pm = "4-7-1";
   String history9pm = "3-0-8";
   
-  // History Dates State
   String date2pm = "Today";
   String date5pm = "Today";
   String date9pm = "Today";
@@ -68,55 +68,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String gameName = "3D Swertres";
   String jackpotPrize = "P4,500.00";
 
-  // 🎯 BAGONG STATE: Dito itatago ang Dynamic Hot Pool galing sa Cloud!
-  List<int> cloudHotPool = [5, 9, 2, 7, 0]; // Fallback if offline
+  // Dynamic Hot Pool Fallback
+  List<int> cloudHotPool = [5, 9, 2, 7, 0];
 
   @override
   void initState() {
     super.initState();
     _strategyTabController = TabController(length: strategies.length, vsync: this);
-    _listenToFirestore(selectedGameFreq);
+    _listenToRealtimeDB(selectedGameFreq);
   }
 
-  void _listenToFirestore(String game) {
-    FirebaseFirestore.instance.collection('pcso_data').doc(game).snapshots().listen((snapshot) {
+  void _listenToRealtimeDB(String game) {
+    // Kinukuha ang data mula sa sub-folder ng pcso_data sa Realtime Database
+    FirebaseDatabase.instance.ref().child('pcso_data').child(game).onValue.listen((event) {
       if (!mounted) return;
-      if (!snapshot.exists) {
-        _checkBackupCollection(game);
-        return;
-      }
-      _updateScreenData(game, snapshot.data());
+      final snapshot = event.snapshot;
+      if (!snapshot.exists || snapshot.value == null) return;
+
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      _updateScreenData(game, data);
     });
   }
 
-  void _checkBackupCollection(String game) {
-    FirebaseFirestore.instance.collection('results').doc(game).snapshots().listen((snapshot) {
-      if (!mounted || !snapshot.exists) {
-        setState(() {
-          gameName = game.contains('-') ? "$game Lotto" : "$game Game";
-          jackpotPrize = "Milyong Piso Jackpot";
-        });
-        return;
-      }
-      _updateScreenData(game, snapshot.data());
-    });
-  }
-
-  void _updateScreenData(String game, Map<String, dynamic>? data) {
+  void _updateScreenData(String game, Map<String, dynamic> data) {
     setState(() {
-      String dbJackpot = (data?['jackpot'] ?? '').toString();
+      String dbJackpot = (data['jackpot'] ?? '').toString();
       
-      // 🎯 UTOS PARA HUGUTIN ANG HOT POOL GALING SA FIRESTORE
-      if (data != null && data.containsKey('hot_pool')) {
+      // Pagkuha ng Hot Pool mula sa Realtime Database array or string
+      if (data.containsKey('hot_pool')) {
         var rawPool = data['hot_pool'];
         if (rawPool is List) {
           cloudHotPool = rawPool.map((e) => int.parse(e.toString())).toList();
         } else if (rawPool is String) {
-          // Kung string format tulad ng "5,9,2,7,0"
           cloudHotPool = rawPool.split(',').map((e) => int.parse(e.trim())).toList();
         }
       } else {
-        // Default fallbacks kung walang data sa database field
         if (game == '3D') cloudHotPool = [5, 9, 2, 7, 0];
         else if (game == '2D') cloudHotPool = [24, 11, 5, 17, 30];
         else cloudHotPool = [];
@@ -125,32 +111,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (game == '3D') {
         gameName = "3D Swertres";
         jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P4,500.00";
-        cloudResult = (data?['result'] ?? '9-2-5').toString();
+        cloudResult = (data['result'] ?? '9-2-5').toString();
         
-        history2pm = (data?['2pm'] ?? data?['history_2pm'] ?? '9-5-2').toString();
-        history5pm = (data?['5pm'] ?? data?['history_5pm'] ?? '4-7-1').toString();
-        history9pm = (data?['9pm'] ?? data?['history_9pm'] ?? '3-0-8').toString();
+        history2pm = (data['2pm'] ?? '9-5-2').toString();
+        history5pm = (data['5pm'] ?? '4-7-1').toString();
+        history9pm = (data['9pm'] ?? '3-0-8').toString();
         
-        date2pm = (data?['date_2pm'] ?? data?['2pm_date'] ?? 'Today').toString();
-        date5pm = (data?['date_5pm'] ?? data?['5pm_date'] ?? 'Today').toString();
-        date9pm = (data?['date_9pm'] ?? data?['9pm_date'] ?? 'Today').toString();
+        date2pm = (data['date_2pm'] ?? 'Today').toString();
+        date5pm = (data['date_5pm'] ?? 'Today').toString();
+        date9pm = (data['date_9pm'] ?? 'Today').toString();
 
       } else if (game == '2D') {
         gameName = "2D Lotto";
         jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P4,000.00";
-        cloudResult = (data?['result'] ?? '24-11').toString();
+        cloudResult = (data['result'] ?? '24-11').toString();
       } else if (game == '4D') {
         gameName = "4D Lotto";
         jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "Minimum P10,000.00";
-        cloudResult = (data?['result'] ?? '1-2-3-4').toString();
+        cloudResult = (data['result'] ?? '1-2-3-4').toString();
       } else if (game == '6D') {
         gameName = "6D Lotto";
         jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "Minimum P150,000.00";
-        cloudResult = (data?['result'] ?? '1-2-3-4-5-6').toString();
+        cloudResult = (data['result'] ?? '1-2-3-4-5-6').toString();
       } else {
         gameName = "$game Lotto";
         jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P20,000,000.00+";
-        cloudResult = (data?['result'] ?? '00-00-00-00-00-00').toString();
+        cloudResult = (data['result'] ?? '00-00-00-00-00-00').toString();
       }
     });
   }
@@ -159,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final random = Random();
     setState(() {
       if (selectedGameFreq == '3D') {
-        // 🎯 GAGAMITIN ANG LATEST HOT POOL GALING SA DATABASE
         List<int> pool = cloudHotPool.isNotEmpty ? cloudHotPool : [5, 9, 2, 7, 0];
         generatedNumbers = List.generate(3, (_) => pool[random.nextInt(pool.length)]);
       } else if (selectedGameFreq == '2D') {
@@ -176,8 +161,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       } else {
         int maxNumber = int.parse(selectedGameFreq.split('-')[1]);
         Set<int> numbersSet = {};
-        
-        // Kung may nakalaang hot pool galing sa cloud para sa malalaking laro, ibabagay nito
         if (cloudHotPool.length >= 6) {
           while (numbersSet.length < 6) {
             numbersSet.add(cloudHotPool[random.nextInt(cloudHotPool.length)]);
@@ -240,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           children: const [
                             Icon(Icons.cloud_done, color: Colors.green, size: 16),
                             SizedBox(width: 5),
-                            Text('FIRESTORE MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('REALTIME MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -296,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           setState(() {
                             selectedGameFreq = value!;
                             generatedNumbers = []; 
-                            _listenToFirestore(selectedGameFreq); 
+                            _listenToRealtimeDB(selectedGameFreq); 
                           });
                         },
                       ),
