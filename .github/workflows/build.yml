@@ -28,13 +28,25 @@ jobs:
           cd lotto_picker
           flutter clean
 
-      - name: Force Install Dependencies
+      - name: Auto-Fix Pubspec Dependencies
         run: |
           cd lotto_picker
-          # Gagamit ng 'any' override para mapwersang mag-resolve ang firebase at web packages
-          flutter pub get --no-example
+          # Papalitan natin ng "any" ang firebase_core at firebase_core_web para si Flutter na ang mamili ng compatible version
+          sed -i 's/firebase_core:.*/firebase_core: any/g' pubspec.yaml
+          sed -i 's/firebase_core_web:.*/firebase_core_web: any/g' pubspec.yaml
 
-      - name: Build APK (Bypass Release)
+      - name: Install dependencies
+        run: |
+          cd lotto_picker
+          flutter pub get
+
+      - name: Build APK (Final Legacy Release)
         run: |
           cd lotto_picker
           flutter build apk --release --no-sound-null-safety
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
