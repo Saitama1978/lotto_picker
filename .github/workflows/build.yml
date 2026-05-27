@@ -1,20 +1,24 @@
-name: Lotto Auto Update
+name: Build Android APK and Update Data
 
 on:
-  schedule:
-    - cron: '0 14 * * *'
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Para pwede mong pindutin nang manu-mano kahit anong oras
 
 jobs:
-  update:
+  build_and_update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      # =========================================================
+      # BAHAGI 1: PAG-UPDATE NG DATA AT HISTORY SA FIREBASE
+      # =========================================================
+      - name: Install Firebase Admin Dependency
         run: npm install firebase-admin
 
-      - name: Run Database Update
+      - name: Run Database Update Script
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
@@ -32,16 +36,76 @@ jobs:
           
           async function run() {
             try {
+              // Ina-update ang live monitor at ang tatlong draw results sa history mo!
               await db.ref('pcso_data/3D/result').set('9-2-5');
               await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
               await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
               await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
-              console.log('Solid ang update!');
+              console.log('Solid! Firebase Data and History updated!');
               process.exit(0);
             } catch(e) {
-              console.error(e);
+              console.error('Sabit sa database:', e);
               process.exit(1);
             }
           }
           run();
           "
+
+      # =========================================================
+      # BAHAGI 2: PAG-LULUTO NG STABLE FLUTTER APK
+      # =========================================================
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      - name: Generate Fresh Flutter App Framework
+        run: |
+          flutter create --platforms android fresh_app
+
+      - name: Configure Android SDK Version for Firebase
+        run: |
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 21/g' fresh_app/android/app/build.gradle
+          sed -i 's/flutter.minSdkVersion/21/g' fresh_app/android/app/build.gradle
+
+      - name: Fix Target Icon Syntax Error
+        run: |
+          sed -i 's/Icons.target/Icons.track_changes/g' lotto_picker/lib/main.dart
+
+      - name: Merge Source Code to Fresh App Workspace
+        run: |
+          rm -f fresh_app/pubspec.yaml
+          cp -r lotto_picker/lib fresh_app/
+          cp lotto_picker/pubspec.yaml fresh_app/
+          if [ -d "lotto_picker/assets" ]; then cp -r lotto_picker/assets fresh_app/; fi
+
+      - name: Inject Firebase Config for Android app
+        env:
+          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ ! -z "$GOOGLE_SERVICES" ]; then
+            echo "$GOOGLE_SERVICES" > fresh_app/android/app/google-services.json
+          fi
+
+      - name: Generate App Launcher Icons
+        run: |
+          cd fresh_app
+          flutter pub get
+          flutter pub run flutter_launcher_icons:main || true
+
+      - name: Build Final Release APK
+        run: |
+          cd fresh_app
+          flutter build apk --release
+
+      - name: Upload APK Product
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lotto-Asintado-Release-APK
+          path: fresh_app/build/app/outputs/flutter-apk/app-release.apk
