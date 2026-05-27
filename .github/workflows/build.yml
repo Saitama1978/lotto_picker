@@ -13,12 +13,12 @@ jobs:
       - uses: actions/checkout@v4
 
       # =========================================================
-      # BAHAGI 1: DATABASE TRIGGER (FIREBASE MULTI-GAME UPDATE)
+      # BAHAGI 1: DOBLENG TRANSMISSION SA FIRESTORE (SIGURADISTA)
       # =========================================================
-      - name: Install Firebase Dependency
+      - name: Install Firebase Admin Dependency
         run: npm install firebase-admin
 
-      - name: Run Database Update
+      - name: Run Firestore Sync (results at pcso_data)
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
@@ -27,26 +27,37 @@ jobs:
           const admin = require('firebase-admin');
           const serviceAccount = require('./serviceAccountKey.json');
           admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app'
+            credential: admin.credential.cert(serviceAccount)
           });
-          const db = admin.database();
+          const db = admin.firestore();
+          
+          async function updateCollections(colName) {
+            console.log('Nagsusulat sa collection: ' + colName);
+            // 3D Setup
+            await db.collection(colName).doc('3D').set({
+              result: '9-2-5',
+              '2pm': '9-5-2',
+              '5pm': '4-7-1',
+              '9pm': '3-0-8'
+            }, { merge: true });
+            
+            // Iba pang mga laro
+            await db.collection(colName).doc('2D').set({ result: '24-11' }, { merge: true });
+            await db.collection(colName).doc('4D').set({ result: '7-4-1-0' }, { merge: true });
+            await db.collection(colName).doc('6D').set({ result: '9-3-5-2-0-1' }, { merge: true });
+            await db.collection(colName).doc('6-42').set({ result: '08-15-22-29-35-41' }, { merge: true });
+            await db.collection(colName).doc('6-45').set({ result: '02-12-24-31-39-44' }, { merge: true });
+            await db.collection(colName).doc('6-49').set({ result: '05-18-23-33-40-47' }, { merge: true });
+            await db.collection(colName).doc('6-55').set({ result: '01-11-21-31-41-51' }, { merge: true });
+            await db.collection(colName).doc('6-58').set({ result: '09-19-29-39-49-55' }, { merge: true });
+          }
+
           async function run() {
             try {
-              // Live 3D Data
-              await db.ref('pcso_data/3D/result').set('9-2-5');
-              await db.ref('pcso_data/3D/history/2pm').set('9-5-2');
-              await db.ref('pcso_data/3D/history/5pm').set('4-7-1');
-              await db.ref('pcso_data/3D/history/9pm').set('3-0-8');
-              
-              // Live 2D Data Fallback
-              await db.ref('pcso_data/2D/result').set('24-11');
-              
-              // Live Grandes Lotto Fallbacks (Para may laman ang 6-42 at iba pa)
-              await db.ref('pcso_data/6-42/result').set('08-15-22-29-35-41');
-              await db.ref('pcso_data/6-45/result').set('02-12-24-31-39-44');
-              
-              console.log('Firebase Multi-Game Database Updated!');
+              // I-sync sa dalawang posibleng pangalan para walang kawala ang app!
+              await updateCollections('pcso_data');
+              await updateCollections('results');
+              console.log('🔥 Lahat ng Lotto games ay matagumpay na nai-sync sa Firestore!');
               process.exit(0);
             } catch(e) {
               console.error(e);
@@ -57,7 +68,7 @@ jobs:
           "
 
       # =========================================================
-      # BAHAGI 2: FRESH WORKSPACE & ICON FORCE GENERATOR
+      # BAHAGI 2: MALINIS NA FRAMEWORK BUILDER
       # =========================================================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -81,10 +92,8 @@ jobs:
 
       - name: Merge Source Code and Logo Assets
         run: |
-          # Kopyahin ang lib folder
           cp -r lotto_picker/lib fresh_app/
           
-          # PINALAKAS NA PUBSPEC WITH FIREBASE LIVE PLUGINS AT ASSETS CONFIG
           cat << 'EOF' > fresh_app/pubspec.yaml
           name: fresh_app
           description: "PH Lotto Asintado Pro"
@@ -98,7 +107,7 @@ jobs:
             flutter:
               sdk: flutter
             firebase_core: ^2.27.0
-            firebase_database: ^10.4.9
+            cloud_firestore: ^4.15.8
 
           dev_dependencies:
             flutter_test:
@@ -116,11 +125,8 @@ jobs:
             remove_alpha_ios: true
           EOF
 
-          # Gumawa ng malinis na assets folder at ilagay ang logo mo dun
           mkdir -p fresh_app/assets
           find lotto_picker -name "*.png" -exec cp {} fresh_app/assets/logo.png \; 2>/dev/null || true
-          
-          # Kung sakaling walang nahanap na png, gumawa ng fallback para hindi mag-error ang icon build
           if [ ! -f fresh_app/assets/logo.png ]; then
             cp fresh_app/android/app/src/main/res/mipmap-hdpi/ic_launcher.png fresh_app/assets/logo.png 2>/dev/null || true
           fi
