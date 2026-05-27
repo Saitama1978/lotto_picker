@@ -6,17 +6,12 @@ import 'dart:math';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
-        projectId: 'lotto-asintado',
-        appId: '1:458447298380:android:308fd26da180954e40b9e9',
-        messagingSenderId: '458447298380',
-        storageBucket: 'lotto-asintado.appspot.com',
-      ),
-    );
+    // 💡 TAMA AT AUTOMATIC WAY: 
+    // Hahayaan natin ang Flutter na basahin ang google-services.json mo!
+    // Tinanggal na natin ang mga pekeng AIzaSy keys para pumasok ang totoong account mo.
+    await Firebase.initializeApp();
   } catch (e) {
-    print("⚠️ Offline mode: $e");
+    print("⚠️ Offline mode / Firebase Init Error: $e");
   }
   runApp(const LottoAsintadoApp());
 }
@@ -49,8 +44,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late TabController _strategyTabController;
   
   final List<String> strategies = ['Hot Frequency', 'Odd/Even Balance', 'High/Low Range'];
-  
-  // 🎯 KUMPLETONG LISTAHAN NG LARO: Idinagdag ang 4D at 6D!
   final List<String> lottoGames = ['3D', '2D', '4D', '6D', '6-42', '6-45', '6-49', '6-55', '6-58'];
   
   String selectedGameFreq = '3D'; 
@@ -73,54 +66,68 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // Live Listener galing sa Cloud Firestore
   void _listenToFirestore(String game) {
+    // 💡 PARA SAFE: Titingnan muna natin sa 'pcso_data' collection.
     FirebaseFirestore.instance.collection('pcso_data').doc(game).snapshots().listen((snapshot) {
       if (!mounted) return;
       
-      setState(() {
-        if (!snapshot.exists) {
-          // Kung wala pang data sa Firestore para sa napiling laro, maglalagay ng default zeros
+      if (!snapshot.exists) {
+        // 💡 KUNG WALA SA 'pcso_data', SUSUBUKAN NAMAN NIYA SA 'results' COLLECTION MO PARA SIGURADO!
+        _checkBackupCollection(game);
+        return;
+      }
+
+      _updateScreenData(game, snapshot.data());
+    });
+  }
+
+  // Backup checker para kung saang folder man pumasok ang data mo, huli pa rin!
+  void _checkBackupCollection(String game) {
+    FirebaseFirestore.instance.collection('results').doc(game).snapshots().listen((snapshot) {
+      if (!mounted || !snapshot.exists) {
+        setState(() {
           gameName = game.contains('-') ? "$game Lotto" : "$game Game";
           jackpotPrize = "Milyong Piso Jackpot";
           if (game == '2D') { cloudResult = "00-00"; jackpotPrize = "P4,000.00"; }
           else if (game == '4D') { cloudResult = "0-0-0-0"; jackpotPrize = "P10,000.00+"; }
           else if (game == '6D') { cloudResult = "0-0-0-0-0-0"; jackpotPrize = "P150,000.00+"; }
           else { cloudResult = "00-00-00-00-00-00"; }
-          return;
-        }
-
-        final data = snapshot.data();
-        
-        if (game == '3D') {
-          gameName = "3D Swertres";
-          jackpotPrize = "P4,500.00";
-          cloudResult = (data?['result'] ?? '9-2-5').toString();
-          
-          // Pagkuha ng history fields galing sa document mo
-          history2pm = (data?['2pm'] ?? data?['history_2pm'] ?? '9-5-2').toString();
-          history5pm = (data?['5pm'] ?? data?['history_5pm'] ?? '4-7-1').toString();
-          history9pm = (data?['9pm'] ?? data?['history_9pm'] ?? '3-0-8').toString();
-        } else if (game == '2D') {
-          gameName = "2D Lotto";
-          jackpotPrize = "P4,000.00";
-          cloudResult = (data?['result'] ?? '24-11').toString();
-        } else if (game == '4D') {
-          gameName = "4D Lotto";
-          jackpotPrize = "Minimum P10,000.00";
-          cloudResult = (data?['result'] ?? '1-2-3-4').toString();
-        } else if (game == '6D') {
-          gameName = "6D Lotto";
-          jackpotPrize = "Minimum P150,000.00";
-          cloudResult = (data?['result'] ?? '1-2-3-4-5-6').toString();
-        } else {
-          gameName = "$game Lotto";
-          jackpotPrize = "Milyong Piso Jackpot";
-          cloudResult = (data?['result'] ?? '00-00-00-00-00-00').toString();
-        }
-      });
+        });
+        return;
+      }
+      _updateScreenData(game, snapshot.data());
     });
   }
 
-  // Dynamic Generator para sa lahat ng laro kasama 4D at 6D!
+  void _updateScreenData(String game, Map<String, dynamic>? data) {
+    setState(() {
+      if (game == '3D') {
+        gameName = "3D Swertres";
+        jackpotPrize = "P4,500.00";
+        cloudResult = (data?['result'] ?? '9-2-5').toString();
+        
+        history2pm = (data?['2pm'] ?? data?['history_2pm'] ?? '9-5-2').toString();
+        history5pm = (data?['5pm'] ?? data?['history_5pm'] ?? '4-7-1').toString();
+        history9pm = (data?['9pm'] ?? data?['history_9pm'] ?? '3-0-8').toString();
+      } else if (game == '2D') {
+        gameName = "2D Lotto";
+        jackpotPrize = "P4,000.00";
+        cloudResult = (data?['result'] ?? '24-11').toString();
+      } else if (game == '4D') {
+        gameName = "4D Lotto";
+        jackpotPrize = "Minimum P10,000.00";
+        cloudResult = (data?['result'] ?? '1-2-3-4').toString();
+      } else if (game == '6D') {
+        gameName = "6D Lotto";
+        jackpotPrize = "Minimum P150,000.00";
+        cloudResult = (data?['result'] ?? '1-2-3-4-5-6').toString();
+      } else {
+        gameName = "$game Lotto";
+        jackpotPrize = "Milyong Piso Jackpot";
+        cloudResult = (data?['result'] ?? '00-00-00-00-00-00').toString();
+      }
+    });
+  }
+
   void generateNumbers() {
     final random = Random();
     setState(() {
@@ -130,13 +137,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       } else if (selectedGameFreq == '2D') {
         generatedNumbers = List.generate(2, (_) => random.nextInt(31) + 1);
       } else if (selectedGameFreq == '4D') {
-        // 4-Digit Game: Nakakakuha ng 4 numbers mula 0 hanggang 9
         generatedNumbers = List.generate(4, (_) => random.nextInt(10));
       } else if (selectedGameFreq == '6D') {
-        // 6-Digit Game: Nakakakuha ng 6 numbers mula 0 hanggang 9
         generatedNumbers = List.generate(6, (_) => random.nextInt(10));
       } else {
-        // Para sa mga malalaking laro (6-42, 6-45, etc.) - 6 non-repeating sorted numbers
         int maxNumber = int.parse(selectedGameFreq.split('-')[1]);
         Set<int> numbersSet = {};
         while (numbersSet.length < 6) {
@@ -194,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Icon(Icons.cloud_done, color: Colors.green, size: 16),
-                            SizedBox(width: 5),
+                            SAuthorizedSizedBox(width: 5),
                             Text('FIRESTORE MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
