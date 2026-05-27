@@ -2,26 +2,31 @@ name: Lotto Auto Update
 
 on:
   schedule:
-    # Tatakbo awtomatiko araw-araw pagkatapos ng huling draw
     - cron: '0 14 * * *'
-  workflow_dispatch: # Para pwede mong pindutin nang manu-mano kahit anong oras
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Update Firebase Data and History
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Firebase Admin
+        run: npm install firebase-admin
+
+      # Dito natin isusulat nang maayos ang script sa isang hiwalay na file bago patakbuhin
+      - name: Run Update Script
         env:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
         run: |
-          # 1. I-extract ang Firebase key galing sa iyong Repository Secrets
           echo "$FIREBASE_KEY" > serviceAccountKey.json
           
-          # 2. I-install ang kailangang Firebase tool
-          npm install firebase-admin
-          
-          # 3. Tatakbo ang Node.js para piliting baguhin ang live cloud at ang history entries
-          node -e '
+          cat << 'EOF' > update_script.js
           const admin = require("firebase-admin");
           const serviceAccount = require("./serviceAccountKey.json");
           
@@ -32,21 +37,22 @@ jobs:
           
           const db = admin.database();
           
-          // DITO ANG MAGIC: Ina-update natin ang main result pati ang tatlong draw times para sa History!
-          const updates = {
-            "pcso_data/3D/result": "9-2-5",
-            "pcso_data/3D/history/2pm": "9-5-2",
-            "pcso_data/3D/history/5pm": "4-7-1",
-            "pcso_data/3D/history/9pm": "3-0-8"
-          };
-          
-          db.ref().update(updates)
-            .then(() => {
+          // Diretsong pagsusulat sa database nodes mo
+          async function startUpdate() {
+            try {
+              await db.ref("pcso_data/3D/result").set("9-2-5");
+              await db.ref("pcso_data/3D/history/2pm").set("9-5-2");
+              await db.ref("pcso_data/3D/history/5pm").set("4-7-1");
+              await db.ref("pcso_data/3D/history/9pm").set("3-0-8");
               console.log("Solid! Tagumpay ang pag-update sa Cloud at History!");
               process.exit(0);
-            })
-            .catch((error) => {
+            } catch (error) {
               console.error("May sumabit sa database update:", error);
               process.exit(1);
-            });
-          '
+            }
+          }
+          
+          startUpdate();
+          EOF
+          
+          node update_script.js
