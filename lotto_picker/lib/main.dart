@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart'; // 👈 Binalik sa Realtime Database
+import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(
-      options: const FirebaseOptions(
+      options: FirebaseOptions(
         apiKey: 'AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q', 
         projectId: 'lotto-asintado',
-        databaseURL: 'https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app', // 👈 Ikinabit sa Realtime URL mo
+        // 🎯 LUNAS SA SABIT: Ginamitan na ng Uri.parse para tanggapin ng Firebase SDK!
+        databaseURL: Uri.parse('https://lotto-asintado-default-rtdb.asia-southeast1.firebasedatabase.app').toString(),
         appId: '1:458447298380:android:308fd26da180954e40b9e9',
         messagingSenderId: '458447298380',
         storageBucket: 'lotto-asintado.appspot.com',
@@ -68,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String gameName = "3D Swertres";
   String jackpotPrize = "P4,500.00";
 
-  // Dynamic Hot Pool Fallback
   List<int> cloudHotPool = [5, 9, 2, 7, 0];
 
   @override
@@ -79,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _listenToRealtimeDB(String game) {
-    // Kinukuha ang data mula sa sub-folder ng pcso_data sa Realtime Database
     FirebaseDatabase.instance.ref().child('pcso_data').child(game).onValue.listen((event) {
       if (!mounted) return;
       final snapshot = event.snapshot;
@@ -94,7 +93,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() {
       String dbJackpot = (data['jackpot'] ?? '').toString();
       
-      // Pagkuha ng Hot Pool mula sa Realtime Database array or string
       if (data.containsKey('hot_pool')) {
         var rawPool = data['hot_pool'];
         if (rawPool is List) {
