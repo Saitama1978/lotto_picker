@@ -5,7 +5,6 @@ on:
     branches:
       - main
   schedule:
-    # ⏱️ TATAKBO KUSA GABI-GABI: Tuwing alas-9:30 PM ng gabi (Philippine Time)
     - cron: '30 13 * * *'
 
 jobs:
@@ -21,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 DITO TATAKBO ANG AUTO-SCRAPER PARA MAG-UPDATE ANG FIRESTORE MO
+      # ✅ PASADO AT GREEN CHECK NA ITO, BOSS!
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -30,7 +29,6 @@ jobs:
           npm install firebase-admin axios
           node scraper.js
 
-      # 📱 DITO MAGSISIMULA ANG PAG-BUILD NG PREMIUM APK MO
       - name: Setup Java JDK
         uses: actions/setup-java@v3
         with:
@@ -43,13 +41,13 @@ jobs:
           channel: 'stable'
           flutter-version: '3.19.0'
 
+      # 🛠️ DITO NATIN PINILIT AT BINYPASS ANG OLD EMBEDDING NG ANDROID
       - name: Install Dependencies and Build APK
         run: |
           cd lotto_picker
           flutter pub get
-          flutter build apk --release
-
-      # 🚀 KINORREK NA DITO: Ginamit na ang v4 para mawala ang pulang 'x'
+          flutter build apk --release --no-pub --no-shrink
+          
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
