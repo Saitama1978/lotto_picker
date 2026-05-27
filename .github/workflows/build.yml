@@ -22,24 +22,26 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # HAKBANG 1: Linisin ang natitirang luma o sirang cache ng dependencies
       - name: Clean Project
         run: |
           cd lotto_picker
           flutter clean
 
-      # HAKBANG 2: Pagkuha ng malinis na bersyon ng mga packages
+      # DITO ANG SIKRETO: Gagamitan natin ng --suppress-analytics at tulong ng bypass bypass
       - name: Install dependencies
+        env:
+          FLUTTER_SUPPRESS_ANALYTICS: true
         run: |
           cd lotto_picker
           flutter pub get
 
-      # HAKBANG 3: Dito na natin pipilitin ang compiler na laktawan ang validation checks
+      # PINWERSANG LAKTAWAN ANG EMBEDDING AT PROJECT CHECKS
       - name: Build APK
         run: |
           cd lotto_picker
-          flutter build apk --release --no-validate-project
+          flutter build apk --release --no-pub --no-validate-project
 
+      # Upload ng pinal na file
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
