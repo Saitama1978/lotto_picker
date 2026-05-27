@@ -22,7 +22,6 @@ jobs:
         with:
           flutter-version: '3.19.0'
 
-      # HAKBANG 1: Piliting i-recreate ang nawawalang android folder sa server
       - name: Recreate Android Project Folder
         run: |
           cd lotto_picker
@@ -38,10 +37,11 @@ jobs:
           cd lotto_picker
           flutter pub get
 
+      # TINANGGAL NA ANG MAKULIT NA FLAG PARA DIRETSO BUILD NA
       - name: Build APK
         run: |
           cd lotto_picker
-          flutter build apk --release --no-validate-project
+          flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
