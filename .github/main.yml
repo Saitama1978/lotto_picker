@@ -37,3 +37,4 @@ jobs:
         with:
           name: app-release
           path: lotto_picker/lotto_picker/build/app/outputs/flutter-apk/app-release.apk
+Build Mo Na
