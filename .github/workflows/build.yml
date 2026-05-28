@@ -1,24 +1,61 @@
-name: lotto_picker
-description: "Lotto Asintado Strategy Pro App"
-publish_to: 'none'
-version: 1.0.0+1
+name: Auto-Sync Lotto Scraper & APK Builder
 
-environment:
-  sdk: '>=3.2.0 <4.0.0'
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '30 13 * * *'
 
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.6
-  firebase_core: ^2.24.0
-  cloud_firestore: ^4.14.0
-  fl_chart: ^0.66.0
-  font_awesome_flutter: ^10.7.0
+jobs:
+  sync_data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^3.0.0
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-flutter:
-  uses-material-design: true
+      - name: Run Auto PCSO Scraper to Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          cd lotto_picker
+          npm install firebase-admin axios
+          node scraper.js
+
+  build_apk:
+    runs-on: ubuntu-latest
+    needs: sync_data
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter Build Environment
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Cmake and Ninja Compiler
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: Fetch App Package Dependencies
+        run: flutter pub get
+
+      - name: Compile and Build Release APK
+        run: flutter build apk --release
+
+      - name: Generate and Upload Download Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lotto-Asintado-Premium-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
