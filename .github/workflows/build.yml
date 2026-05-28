@@ -29,29 +29,29 @@ jobs:
           npm install firebase-admin axios
           node scraper.js
 
-      # ☕ JAVA SETUP PARA SA ANDROID
+      # ☕ JAVA SETUP PARA SA ANDROID (Java 11 ang pinaka-compatible sa classic stable engines)
       - name: Setup Java JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '11'
 
-      # 📱 FLUTTER COMPILER SETUP
+      # 📱 FLUTTER COMPILER SETUP (Ibinalik natin sa 3.10.0 para tanggapin ang classic setup mo nang walang embedding checks)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.19.0'
+          flutter-version: '3.10.0'
 
-      # 🛠️ PINILIT NA BYPASS: TINAASAN ANG ANDROID SUB-VERSION AT IN-IGNORE ANG EMBEDDING ERRORS
+      # 🛠️ RE-INITIALIZE AT BUILD PROCESS
       - name: Install Dependencies and Build APK
         run: |
           cd lotto_picker
+          flutter clean
           flutter pub get
-          # Gagamit ng lint-ignore at flag bypass para hindi harangin ni Firebase ang app compiler
-          flutter build apk --release --no-sound-null-safety || flutter build apk --release
+          flutter build apk --release --no-sound-null-safety
 
-      # 🚀 DITO NA LALABAS ANG KULAY ASUL NA DOWNLOAD LINK PAGKATAPOS
+      # 🚀 DITO NA LALABAS ANG KULAY ASUL NA DOWNLOAD LINK NG PRODUKTO MO
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
