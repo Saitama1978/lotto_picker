@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:math';
 
 void main() async {
@@ -28,10 +30,10 @@ class LottoAsintadoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'PH Lotto Asintado Pro',
+      title: 'Lotto Asintado Strategy Pro',
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        primaryColor: Colors.blueAccent,
+        scaffoldBackgroundColor: const Color(0xFF0D0D11),
+        primaryColor: const Color(0xFFFFD700),
       ),
       home: const HomeScreen(),
     );
@@ -46,362 +48,348 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  late TabController _strategyTabController;
+  late TabController _navTabController;
+  final List<String> lottoGames = ['6/42', '6/45', '6/49', '6/55', '6/58', '3D', '2D', '4D', '6D'];
   
-  // 🎯 STRATEGY LIST: Idinagdag ang hiling mong Zodiac, Birth Year, at Date/Year!
-  final List<String> strategies = ['Hot Frequency', 'Zodiac Guide', 'Birth Year Luck', 'Date & Year'];
-  final List<String> lottoGames = ['3D', '2D', '4D', '6D', '6-42', '6-45', '6-49', '6-55', '6-58'];
+  String selectedGame = '6/42';
+  String selectedZodiac = 'Zodiac';
+  final TextEditingController _birthYearController = TextEditingController(text: '1951');
   
-  final List<String> zodiacSigns = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
-
-  String selectedGameFreq = '3D'; 
-  String selectedStrategy = 'Hot Frequency';
-  List<int> generatedNumbers = [];
-
-  // Controllers para sa mga inputs ng user
-  String selectedZodiac = 'Aries';
-  final TextEditingController _birthYearController = TextEditingController(text: '1990');
-  final TextEditingController _dateYearController = TextEditingController(text: '12-25-2026');
-
-  // Firestore Live States
-  String cloudResult = "9-2-5";
-  String history2pm = "9-5-2";
-  String history5pm = "4-7-1";
-  String history9pm = "3-0-8";
-  String date2pm = "Today";
-  String date5pm = "Today";
-  String date9pm = "Today";
-  String gameName = "3D Swertres";
-  String jackpotPrize = "P4,500.00";
+  List<List<int>> generatedCombinations = [];
+  String cloudResult = "00-00-00-00-00-00";
+  String jackpotPrize = "P35,500,000";
 
   @override
   void initState() {
     super.initState();
-    _strategyTabController = TabController(length: strategies.length, vsync: this);
-    _strategyTabController.addListener(() {
-      setState(() {
-        selectedStrategy = strategies[_strategyTabController.index];
-      });
-    });
+    _navTabController = TabController(length: 4, vsync: this, initialIndex: 2);
   }
 
-  // 🧠 ALGORITHM NG MGA BAGONG DROPDOWNS AT INPUTS
-  void generateNumbers() {
+  void calculateCombinations() {
     final random = Random();
-    int seedValue = random.nextInt(100); // Default random seed
+    int gameMax = 42;
+    if (selectedGame == '6/45') gameMax = 45;
+    if (selectedGame == '6/49') gameMax = 49;
+    if (selectedGame == '6/55') gameMax = 55;
+    if (selectedGame == '6/58') gameMax = 58;
 
-    // 1. Kung Zodiac Guide ang napili
-    if (selectedStrategy == 'Zodiac Guide') {
-      seedValue = selectedZodiac.codeUnits.reduce((a, b) => a + b);
-    } 
-    // 2. Kung Birth Year Luck ang napili
-    else if (selectedStrategy == 'Birth Year Luck') {
-      int parsedYear = int.tryParse(_birthYearController.text) ?? 1990;
-      seedValue = parsedYear;
-    } 
-    // 3. Kung Date & Year ang napili
-    else if (selectedStrategy == 'Date & Year') {
-      String cleanDate = _dateYearController.text.replaceAll('-', '');
-      seedValue = int.tryParse(cleanDate) ?? 2026;
+    List<List<int>> tempCombi = [];
+    
+    // Generate 4 premium rows like the screenshot
+    for (int i = 0; i < 4; i++) {
+      Set<int> numSet = {};
+      if (selectedGame.contains('D')) {
+        int digits = int.parse(selectedGame.replaceAll('D', ''));
+        List<int> dList = List.generate(digits, (_) => random.nextInt(10));
+        tempCombi.add(dList);
+      } else {
+        while (numSet.length < 5) { // Pinapakita sa screenshot ay 5 balls kada row
+          numSet.add(random.nextInt(gameMax) + 1);
+        }
+        tempCombi.add(numSet.toList()..sort());
+      }
     }
 
-    // Gamitin ang kalkuladong seed para maging asintado ang numerong ilalabas
-    final seededRandom = Random(seedValue + random.nextInt(50));
-
     setState(() {
-      int count = 6;
-      int maxNum = 58;
-
-      if (selectedGameFreq == '3D') {
-        generatedNumbers = List.generate(3, (_) => seededRandom.nextInt(10));
-        return;
-      } else if (selectedGameFreq == '2D') {
-        Set<int> numbersSet = {};
-        while (numbersSet.length < 2) {
-          numbersSet.add(seededRandom.nextInt(31) + 1);
-        }
-        generatedNumbers = numbersSet.toList();
-        return;
-      } else if (selectedGameFreq == '4D') {
-        generatedNumbers = List.generate(4, (_) => seededRandom.nextInt(10));
-        return;
-      } else if (selectedGameFreq == '6D') {
-        generatedNumbers = List.generate(6, (_) => seededRandom.nextInt(10));
-        return;
-      } else {
-        maxNum = int.parse(selectedGameFreq.split('-')[1]);
-        count = 6;
-      }
-
-      Set<int> numbersSet = {};
-      while (numbersSet.length < count) {
-        numbersSet.add(seededRandom.nextInt(maxNum) + 1);
-      }
-      generatedNumbers = numbersSet.toList()..sort();
+      generatedCombinations = tempCombi;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // I-convert ang '6/42' sa '6-42' para tumugma sa Firestore IDs mo
+    String docId = selectedGame.replaceAll('/', '-');
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: const Color(0xFF16161F),
         elevation: 0,
-        centerTitle: true,
-        title: Column(
+        leading: const Icon(Icons.arrow_back, color: Colors.white54),
+        actions: const [
+          Icon(Icons.crop_free, color: Colors.white54),
+          SizedBox(width: 15),
+          Icon(Icons.settings, color: Colors.white54),
+          SizedBox(width: 15),
+        ],
+        title: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.stars, color: Color(0xFFFFD700), size: 24),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Icon(Icons.stars, color: Colors.amber, size: 20),
-                SizedBox(width: 5),
-                Text('LOTTO ASINTADO STRATEGY PRO', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text('LOTTO ASINTADO STRATEGY PRO', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+                Text('Developer: Renante Fullo', style: TextStyle(fontSize: 11, color: Colors.white54)),
               ],
             ),
-            const Text('Developer: Renante Fullo', style: TextStyle(fontSize: 11, color: Colors.blueAccent)),
           ],
         ),
         bottom: TabBar(
-          controller: _strategyTabController,
-          isScrollable: true,
-          indicatorColor: Colors.blueAccent,
-          labelColor: Colors.blueAccent,
-          unselectedLabelColor: Colors.grey,
-          tabs: strategies.map((strat) => Tab(text: strat.toUpperCase())).toList(),
+          controller: _navTabController,
+          indicatorColor: const Color(0xFFFFD700),
+          labelColor: const Color(0xFFFFD700),
+          unselectedLabelColor: Colors.white38,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          tabs: const [
+            Tab(icon: Icon(Icons.list_alt, size: 20), text: 'MY COMBINATIONS'),
+            Tab(icon: Icon(Icons.local_fire_department, size: 20), text: 'HOT NUMBERS'),
+            Tab(icon: Icon(Icons.menu_book, size: 20), text: 'STRATEGY GUIDE'),
+            Tab(icon: Icon(Icons.history, size: 20), text: 'MY HISTORY'),
+          ],
         ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('pcso_data').doc(selectedGameFreq).snapshots(),
+        stream: FirebaseFirestore.instance.collection('pcso_data').doc(docId).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>;
-            String dbJackpot = (data['jackpot'] ?? '').toString();
-            
-            if (selectedGameFreq == '3D') {
-              gameName = "3D Swertres";
-              jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P4,500.00";
-              cloudResult = (data['result'] ?? '9-2-5').toString();
-              history2pm = (data['2pm'] ?? '9-5-2').toString();
-              history5pm = (data['5pm'] ?? '4-7-1').toString();
-              history9pm = (data['9pm'] ?? '3-0-8').toString();
-              date2pm = (data['date_2pm'] ?? 'Today').toString();
-              date5pm = (data['date_5pm'] ?? 'Today').toString();
-              date9pm = (data['date_9pm'] ?? 'Today').toString();
-            } else if (selectedGameFreq == '2D') {
-              gameName = "2D Lotto";
-              jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P4,000.00";
-              cloudResult = (data['result'] ?? '24-11').toString();
-            } else if (selectedGameFreq == '4D') {
-              gameName = "4D Lotto";
-              jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "Minimum P10,000.00";
-              cloudResult = (data['result'] ?? '1-2-3-4').toString();
-            } else if (selectedGameFreq == '6D') {
-              gameName = "6D Lotto";
-              jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "Minimum P150,000.00";
-              cloudResult = (data['result'] ?? '1-2-3-4-5-6').toString();
-            } else {
-              gameName = "$selectedGameFreq Lotto";
-              jackpotPrize = dbJackpot.isNotEmpty ? dbJackpot : "P20,000,000.00+";
-              cloudResult = (data['result'] ?? '00-00-00-00-00-00').toString();
-            }
+            cloudResult = (data['result'] ?? data['numbers'] ?? '00-00-00').toString();
+            jackpotPrize = (data['jackpot'] ?? 'P0.00').toString();
           }
 
-          return Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Top Live Estimated Jackpot Display Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF231B15), Color(0xFF16161F)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber.withOpacity(0.2), width: 1.5),
+                  ),
+                  child: Row(
                     children: [
-                      // Cloud Live Results Box
                       Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
+                        child: Text(selectedGame, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.gpp_good, color: Colors.green, size: 16),
-                                SizedBox(width: 5),
-                                Text('FIRESTORE MONITOR ACTIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text('$gameName | Live Data', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                            const SizedBox(height: 12),
-                            Text(cloudResult, style: const TextStyle(color: Colors.amber, fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                            const SizedBox(height: 4),
-                            Text('Jackpot: $jackpotPrize', style: const TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.w500)),
+                            Text('Next Draw: $selectedGame Lotto', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 2),
+                            const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                            const SizedBox(height: 6),
+                            Text(jackpotPrize, style: const TextStyle(color: Color(0xFFFFD700), fontSize: 24, fontWeight: FontWeight.bold)),
                           ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      if (selectedGameFreq == '3D') ...[
-                        Row(
-                          children: const [
-                            Icon(Icons.calendar_today, color: Colors.grey, size: 16),
-                            SizedBox(width: 5),
-                            Text('PREVIOUS PCSO HISTORY (3D)', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildHistoryBox('2 PM', history2pm, date2pm),
-                            _buildHistoryBox('5 PM', history5pm, date5pm),
-                            _buildHistoryBox('9 PM', history9pm, date9pm),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // Game Selector Dropdown
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.grey.shade700)),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedGameFreq,
-                            isExpanded: true,
-                            dropdownColor: const Color(0xFF1E1E1E),
-                            items: lottoGames.map((String game) {
-                              return DropdownMenuItem<String>(
-                                value: game,
-                                child: Text('Digit Game: $game', style: const TextStyle(color: Colors.white, fontSize: 15)),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedGameFreq = value!;
-                                generatedNumbers = []; 
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // 🎯 MGA DYNAMIC INPUTS BASE SA PINILING TAB / STRATEGY
-                      if (selectedStrategy == 'Zodiac Guide') ...[
-                        const Text('PILIIN ANG IYONG ZODIAC SIGN:', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.blueAccent, width: 1.5)),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedZodiac,
-                              isExpanded: true,
-                              dropdownColor: const Color(0xFF1E1E1E),
-                              items: zodiacSigns.map((String sign) {
-                                return DropdownMenuItem<String>(value: sign, child: Text('Lucky Zodiac: $sign', style: const TextStyle(color: Colors.amber)));
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() { selectedZodiac = value!; });
-                              },
-                            ),
-                          ),
-                        ),
-                      ] else if (selectedStrategy == 'Birth Year Luck') ...[
-                        const Text('IPASOK ANG TAON NG IYONG KAPANGANAKAN:', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _birthYearController,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(color: Colors.amber),
-                          decoration: InputDecoration(
-                            hintText: 'Halimbawa: 1995',
-                            filled: true,
-                            fillColor: const Color(0xFF1E1E1E),
-                            prefixIcon: const Icon(Icons.cake, color: Colors.blueAccent),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.blueAccent)),
-                          ),
-                        ),
-                      ] else if (selectedStrategy == 'Date & Year') ...[
-                        const Text('IPASOK ANG PETSA NGAYON O PETSA NG BOLA (MM-DD-YYYY):', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _dateYearController,
-                          keyboardType: TextInputType.datetime,
-                          style: const TextStyle(color: Colors.amber),
-                          decoration: InputDecoration(
-                            hintText: 'Format: 05-27-2026',
-                            filled: true,
-                            fillColor: const Color(0xFF1E1E1E),
-                            prefixIcon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.blueAccent)),
-                          ),
-                        ),
-                      ],
-                      
-                      const SizedBox(height: 40),
-                      
-                      // Result Display
-                      Center(
-                        child: Text(
-                          generatedNumbers.isEmpty 
-                            ? 'Pindutin ang pindutan para mag-kalkula' 
-                            : generatedNumbers.join(' - '),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: generatedNumbers.isEmpty ? Colors.grey.shade600 : Colors.amber,
-                            fontSize: generatedNumbers.isEmpty ? 14 : 28,
-                            fontWeight: FontWeight.bold,
-                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              
-              // Action Button
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                const SizedBox(height: 16),
+
+                // Selector Control Row (Dropdown & Buttons)
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(color: const Color(0xFF16161F), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white10)),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedGame,
+                            dropdownColor: const Color(0xFF16161F),
+                            isExpanded: true,
+                            items: lottoGames.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                            onChanged: (v) => setState(() => selectedGame = v!),
+                          ),
+                        ),
+                      ),
                     ),
-                    onPressed: generateNumbers,
-                    child: Text('GENERATE VIA $selectedStrategy', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                  ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: const Color(0xFF16161F), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.trending_up, color: Colors.amber, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: const Color(0xFF16161F), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.bar_chart, color: Colors.grey, size: 20),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+
+                // Middle Row: Frequency Chart & Lucky Generator Inputs
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left Column - Hot Number Frequency Chart
+                    Expanded(
+                      child: Container(
+                        height: 175,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFF16161F), borderRadius: BorderRadius.circular(14)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Hot Number Frequency', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 15),
+                            Expanded(
+                              child: BarChart(
+                                BarChartData(
+                                  borderData: FlBorderData(show: false),
+                                  titlesData: FlTitlesData(
+                                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        getTitlesWidget: (val, _) => Text((val.toInt() + 1).toString(), style: const TextStyle(fontSize: 9, color: Colors.white30)),
+                                      ),
+                                    ),
+                                  ),
+                                  barGroups: [
+                                    BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 45, color: Colors.pinkAccent, width: 8)]),
+                                    BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 38, color: Colors.orangeAccent, width: 8)]),
+                                    BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 32, color: Colors.greenAccent, width: 8)]),
+                                    BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 35, color: Colors.blueAccent, width: 8)]),
+                                    BarChartGroupData(x: 4, barRods: [BarChartRodData(toY: 30, color: Colors.purpleAccent, width: 8)]),
+                                    BarChartGroupData(x: 5, barRods: [BarChartRodData(toY: 18, color: Colors.deepPink, width: 8)]),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Right Column - Input Configuration Fields
+                    Expanded(
+                      child: Container(
+                        height: 175,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFF16161F), borderRadius: BorderRadius.circular(14)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Lucky Combination Generator', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                            
+                            // Zodiac Dropdown Field
+                            Container(
+                              height: 38,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(color: const Color(0xFF0D0D11), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white10)),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedZodiac,
+                                  isExpanded: true,
+                                  dropdownColor: const Color(0xFF16161F),
+                                  items: ['Zodiac', 'Aries', 'Leo', 'Pisces'].map((z) => DropdownMenuItem(value: z, child: Text(z, style: const TextStyle(fontSize: 12)))).toList(),
+                                  onChanged: (v) => setState(() => selectedZodiac = v!),
+                                ),
+                              ),
+                            ),
+
+                            // Birth Year Input Field
+                            SizedBox(
+                              height: 38,
+                              child: TextField(
+                                controller: _birthYearController,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(fontSize: 12),
+                                decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                                  labelText: 'Birth Year',
+                                  labelStyle: const TextStyle(color: Colors.white38, fontSize: 11),
+                                  filled: true,
+                                  fillColor: const Color(0xFF0D0D11),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.white10)),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.amber)),
+                                ),
+                              ),
+                            ),
+
+                            // Calculate Button Action
+                            SizedBox(
+                              width: double.infinity,
+                              height: 36,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF251E18),
+                                  side: const BorderSide(color: Color(0xFF5E4934)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: calculateCombinations,
+                                child: const Text('Calculate', style: TextStyle(color: Color(0xFFFFD700), fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Bottom Generated Combination Output List View
+                if (generatedCombinations.isNotEmpty)
+                  ...generatedCombinations.map((combination) => Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFF16161F), borderRadius: BorderRadius.circular(12)),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star, color: Color(0xFFFFD700), size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Wrap(
+                                spacing: 8,
+                                children: combination.map((num) => Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: const BoxDecoration(color: Color(0xFF262633), shape: BoxShape.circle),
+                                      child: Text(num.toString().padLeft(2, '0'), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFFD700), fontSize: 13)),
+                                    )).toList(),
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: const [
+                                Text('94%内容', style: TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 12)),
+                                Text('Match', style: TextStyle(color: Colors.white38, fontSize: 9)),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(color: const Color(0xFF262633), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white10)),
+                              child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 11)),
+                            ),
+                          ],
+                        ),
+                      )),
+              ],
+            ),
           );
         },
       ),
-    );
-  }
-
-  Widget _buildHistoryBox(String time, String result, String dateValue) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-              child: Text(time, style: const TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 8),
-            Text(result, style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text(dateValue, style: const TextStyle(color: Colors.grey, fontSize: 10), textAlign: TextAlign.center),
-          ],
-        ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF1F1F2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white10)),
+        onPressed: calculateCombinations,
+        child: const Icon(Icons.add, color: Color(0xFFFFD700)),
       ),
     );
   }
