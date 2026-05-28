@@ -51,10 +51,31 @@ jobs:
           flutter create --org com.renantefullo.lottoasintado lotto_app_built
           cd lotto_app_built
           
-          # I-install ang Google Fonts para sa premium typography
+          # I-install ang mga kailangang packages kasama ang Launcher Icons generator
           flutter pub add google_fonts
+          flutter pub add --dev flutter_launcher_icons
           
-          # Isulat ang pinakamagandang main.dart
+          # --- AUTOMATED LAUNCHER ICON GENERATOR SYSTEM ---
+          # Gumawa ng temporary folder para sa icon asset
+          mkdir -p assets/icon
+          
+          # Gumawa ng custom base64-coded Premium Gold Crown/Star icon para hindi logo ng Flutter ang lumabas
+          echo "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" | base64 -d > assets/icon/app_icon.png
+          
+          # Isulat ang configuration file para sa app icon
+          cat << 'EOF' > flutter_launcher_icons.yaml
+          flutter_launcher_icons:
+            android: "launcher_icon"
+            ios: true
+            image_path: "assets/icon/app_icon.png"
+            adaptive_icon_background: "#201335" # Premium Dark Purple background
+            adaptive_icon_foreground: "assets/icon/app_icon.png"
+          EOF
+          
+          # Patakbuhin ang icon generator plugin
+          flutter pub run flutter_launcher_icons
+          
+          # Isulat ang pinaka-espesyal na main.dart
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -87,14 +108,12 @@ jobs:
           }
 
           class _PremiumDashboardScreenState extends State<PremiumDashboardScreen> {
-            // Mga Variables para sa Interactive State Management
             String selectedGame = '6/42';
             String selectedZodiac = 'Zodiac';
             final TextEditingController _yearController = TextEditingController(text: '1951');
-            int currentActiveTab = 2; // Strategy Guide bilang active base sa larawan mo
+            int currentActiveTab = 2; 
             bool isCalculating = false;
 
-            // Listahan ng mga laro at ang kanilang jackpot pools
             final Map<String, String> jackpotPools = {
               '6/42': '₱35,500,000',
               '6/45': '₱58,200,000',
@@ -103,7 +122,6 @@ jobs:
               '6/58': '₱380,100,000',
             };
 
-            // Simulang hawak na mga kombinasyon (Gaya ng nasa mockup mo)
             List<List<int>> currentCombinations = [
               [11, 25, 38, 50, 67],
               [11, 25, 38, 50, 67],
@@ -111,19 +129,16 @@ jobs:
               [11, 25, 38, 50, 67],
             ];
 
-            // Formula sa pag-kalkula gamit ang Birth Year at Zodiac Sign
             void _calculateLuckyCombination() {
               setState(() {
                 isCalculating = true;
               });
 
-              // Magkaroon ng kunwaring computational delay para sa premium feel
               Future.delayed(const Duration(milliseconds: 1200), () {
                 if (!mounted) return;
                 setState(() {
                   isCalculating = false;
                   
-                  // Kumuha ng seed values base sa taon at zodiac string length
                   int yearVal = int.tryParse(_yearController.text) ?? 1951;
                   int zodiacSeed = selectedZodiac.length * 7;
                   int maxBallRange = selectedGame == '6/42' ? 42 : (selectedGame == '6/45' ? 45 : 55);
@@ -156,9 +171,8 @@ jobs:
             @override
             Widget build(BuildContext context) {
               return Scaffold(
-                // --- APP BAR (Premium Dark-Purple at Gold Theme) ---
                 appBar: AppBar(
-                  backgroundColor: const Color(0xFF201335), // Ube header
+                  backgroundColor: const Color(0xFF201335), 
                   elevation: 6,
                   leading: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white70),
@@ -166,7 +180,6 @@ jobs:
                   ),
                   title: Row(
                     children: [
-                      // Gintong Star Emblem (Custom Graphic Crest)
                       Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
@@ -176,13 +189,6 @@ jobs:
                             end: Alignment.bottomRight,
                           ),
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFFD700).withOpacity(0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            )
-                          ],
                         ),
                         child: const Icon(Icons.star, color: Color(0xFF201335), size: 18),
                       ),
@@ -218,9 +224,8 @@ jobs:
                 ),
                 body: Column(
                   children: [
-                    // --- SUB-HEADER NAVIGATION TABS ---
                     Container(
-                      color: const Color(0xFF190E2C), // Mas madilim na ube bar sa ilalim
+                      color: const Color(0xFF190E2C), 
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -232,75 +237,90 @@ jobs:
                         ],
                       ),
                     ),
-                    
-                    // Main Dashboard Content
                     Expanded(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(12.0),
                         child: Column(
                           children: [
-                            // --- TOP DRAW & JACKPOT CARD ---
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF261D15), Color(0xFF131317)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF131317),
+                                  border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.4), width: 1.5),
                                 ),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.35), width: 1.5),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Red Lotto Badge Circle
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF3B1514),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.redAccent, width: 1.5),
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        '6/42\nLOTTO',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.black, height: 1.1),
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: GeometricPatternPainter(),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  // Jackpot Details
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Next Draw: $selectedGame Lotto', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                                        const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          jackpotPools[selectedGame] ?? '₱35,500,000',
-                                          style: GoogleFonts.montserrat(
-                                            color: const Color(0xFFE5A93C),
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5,
+                                    Positioned.fill(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              const Color(0xFF261D15).withOpacity(0.95),
+                                              const Color(0xFF131317).withOpacity(0.9),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
                                           ),
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 50,
+                                            height: 50,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF3B1514),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: Colors.redAccent, width: 1.5),
+                                            ),
+                                            child: const Center(
+                                              child: Text(
+                                                '6/42\nLOTTO',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold, height: 1.1),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text('Next Draw: $selectedGame Lotto', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                                const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  jackpotPools[selectedGame] ?? '₱35,500,000',
+                                                  style: GoogleFonts.montserrat(
+                                                    color: const Color(0xFFE5A93C),
+                                                    fontSize: 26,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 14),
-
-                            // --- FILTERS BAR (Select game, icons, settings) ---
                             Row(
                               children: [
-                                // Interactive Dropdown Selector
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10),
                                   height: 36,
@@ -337,12 +357,9 @@ jobs:
                               ],
                             ),
                             const SizedBox(height: 14),
-
-                            // --- MIDDLE DUAL-PANELS (Interactive custom Chart & Lucky Form) ---
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Kaliwa: Ang ating magandang Custom Chart
                                 Expanded(
                                   child: Container(
                                     height: 195,
@@ -362,12 +379,12 @@ jobs:
                                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              _buildCustomBarIndicator(45, const Color(0xFFE94560), '1'),
-                                              _buildCustomBarIndicator(40, const Color(0xFFFFA34D), '2'),
-                                              _buildCustomBarIndicator(35, const Color(0xFF53D296), '3'),
-                                              _buildCustomBarIndicator(36, const Color(0xFF42A5F5), '4'),
-                                              _buildCustomBarIndicator(33, const Color(0xFF8E24AA), '5'),
-                                              _buildCustomBarIndicator(18, const Color(0xFFE91E63), '6'),
+                                              _buildCustomBarIndicator(45, Colors.pink, '1'),
+                                              _buildCustomBarIndicator(40, Colors.orange, '2'),
+                                              _buildCustomBarIndicator(35, Colors.green, '3'),
+                                              _buildCustomBarIndicator(36, Colors.blue, '4'),
+                                              _buildCustomBarIndicator(33, Colors.purple, '5'),
+                                              _buildCustomBarIndicator(18, Colors.pinkAccent, '6'),
                                             ],
                                           ),
                                         ),
@@ -376,8 +393,6 @@ jobs:
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                
-                                // Kanan: Ang Lucky Combo Generator Form
                                 Expanded(
                                   child: Container(
                                     height: 195,
@@ -392,8 +407,6 @@ jobs:
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text('Lucky Combination Generator', style: TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.bold)),
-                                        
-                                        // Interactive Zodiac dropdown
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8),
                                           height: 36,
@@ -411,8 +424,6 @@ jobs:
                                             ),
                                           ),
                                         ),
-
-                                        // Interactive Year input
                                         SizedBox(
                                           height: 36,
                                           child: TextField(
@@ -430,8 +441,6 @@ jobs:
                                             ),
                                           ),
                                         ),
-
-                                        // Premium Calculate Button (with interactive state change)
                                         SizedBox(
                                           width: double.infinity,
                                           height: 34,
@@ -454,8 +463,6 @@ jobs:
                               ],
                             ),
                             const SizedBox(height: 14),
-
-                            // --- BALL ROW LISTING (Eksaktong look sa image mo!) ---
                             ...currentCombinations.map((combo) => _buildLottoPremiumRow(combo)),
                           ],
                         ),
@@ -463,8 +470,6 @@ jobs:
                     ),
                   ],
                 ),
-                
-                // Floating Action Circle (Plus Sign)
                 floatingActionButton: FloatingActionButton(
                   backgroundColor: const Color(0xFF231338),
                   shape: RoundedRectangleBorder(
@@ -477,7 +482,6 @@ jobs:
               );
             }
 
-            // Custom Tab Item Renderer
             Widget _buildTabItem(int index, IconData icon, String label) {
               bool isSelected = currentActiveTab == index;
               return GestureDetector(
@@ -496,7 +500,7 @@ jobs:
                         style: TextStyle(
                           fontSize: 9, 
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, 
-                          color: isSelected ? const Color(0xFFE5A93C) : Colors.white30
+                          color: isSelected ? const Color(0xFFFFD700) : Colors.white30
                         ),
                       ),
                     ],
@@ -518,7 +522,6 @@ jobs:
               );
             }
 
-            // Custom built-in elegant Bar indicator
             Widget _buildCustomBarIndicator(double indicatorHeight, Color barColor, String xLabel) {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -537,7 +540,6 @@ jobs:
               );
             }
 
-            // Custom Card row for standard and premium winning balls
             Widget _buildLottoPremiumRow(List<int> ballNumbers) {
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -551,8 +553,6 @@ jobs:
                   children: [
                     const Icon(Icons.star, color: Color(0xFFE5A93C), size: 16),
                     const SizedBox(width: 8),
-                    
-                    // Render ng 5 Bolas
                     Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -573,8 +573,6 @@ jobs:
                       ),
                     ),
                     const SizedBox(width: 8),
-                    
-                    // Match indicators
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -583,8 +581,6 @@ jobs:
                       ],
                     ),
                     const SizedBox(width: 10),
-                    
-                    // Save Button
                     SizedBox(
                       height: 28,
                       child: OutlinedButton(
@@ -592,7 +588,7 @@ jobs:
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('💾 Kombinasyon $ballNumbers ay ligtas na na-save!'),
-                              backgroundColor: Colors.green[800],
+                              backgroundColor: Colors.green,
                             ),
                           );
                         },
@@ -608,6 +604,31 @@ jobs:
                 ),
               );
             }
+          }
+
+          class GeometricPatternPainter extends CustomPainter {
+            @override
+            void paint(Canvas canvas, Size size) {
+              final paint = Paint()
+                ..color = const Color(0xFFE5A93C).withOpacity(0.04)
+                ..strokeWidth = 1.0
+                ..style = PaintingStyle.stroke;
+
+              const double sizeFactor = 16.0;
+              for (double x = 0; x < size.width + sizeFactor; x += sizeFactor) {
+                for (double y = 0; y < size.height + sizeFactor; y += sizeFactor) {
+                  final path = Path();
+                  path.moveTo(x, y - (sizeFactor / 2));
+                  path.lineTo(x + (sizeFactor / 2), y);
+                  path.lineTo(x, y + (sizeFactor / 2));
+                  path.lineTo(x - (sizeFactor / 2), y);
+                  path.close();
+                  canvas.drawPath(path, paint);
+                }
+              }
+            }
+            @override
+            bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
           }
           EOF
           
