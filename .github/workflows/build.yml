@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch: # 🔥 ITO ANG LALAGYAN NG MANUAL RUN BUTTON PARA HINDI SUMABLAY!
+  workflow_dispatch:
 
 jobs:
   sync_data:
@@ -13,9 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
-        with: { node-version: '18' }
+        with:
+          node-version: '18'
       - name: Run Scraper
-        env: { FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }} }
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           cd lotto_picker
           npm install firebase-admin axios
@@ -27,9 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with: { distribution: 'zulu', java-version: '17' }
+        with:
+          distribution: 'zulu'
+          java-version: '17'
       - uses: subosito/flutter-action@v2
-        with: { channel: 'stable' }
+        with:
+          channel: 'stable'
       - name: Install Tools
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
 
@@ -46,7 +51,6 @@ jobs:
           import 'package:fl_chart/fl_chart.dart';
           import 'package:font_awesome_flutter/font_awesome_flutter.dart';
           import 'package:google_fonts/google_fonts.dart';
-          import 'dart:math';
 
           void main() async {
             WidgetsFlutterBinding.ensureInitialized();
@@ -72,7 +76,6 @@ jobs:
                 debugShowCheckedModeBanner: false,
                 theme: ThemeData.dark().copyWith(
                   scaffoldBackgroundColor: const Color(0xFF0D0D11),
-                  textSelectionTheme: const TextSelectionThemeData(cursorColor: Color(0xFFFFD700)),
                 ),
                 home: const HomeScreen(),
               );
@@ -86,7 +89,6 @@ jobs:
           }
 
           class _HomeScreenState extends State<HomeScreen> {
-            String selectedGame = '6/42';
             List<List<int>> generatedCombinations = [[11, 25, 38, 50, 67], [11, 25, 38, 50, 67], [11, 25, 38, 50, 67]];
 
             @override
@@ -155,7 +157,7 @@ jobs:
                               child: BarChart(BarChartData(
                                 borderData: FlBorderData(show: false),
                                 barGroups: [
-                                  BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 8, color: Colors.pinkAccent, width: 8)]),
+                                  BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 8, color: Colors.pink, width: 8)]),
                                   BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 10, color: Colors.orangeAccent, width: 8)]),
                                   BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 7, color: Colors.yellowAccent, width: 8)]),
                                   BarChartGroupData(x: 4, barRods: [BarChartRodData(toY: 12, color: Colors.greenAccent, width: 8)]),
