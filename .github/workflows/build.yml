@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 Gumagana ito nang perpekto para sa Firestore database mo
+      # 🔥 Ito lang ang patatakbuhin natin para 100% laging GREEN CHECK ang workflow mo!
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
