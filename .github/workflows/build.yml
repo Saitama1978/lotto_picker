@@ -2,9 +2,7 @@ name: Auto-Sync Lotto Scraper & APK Builder
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
