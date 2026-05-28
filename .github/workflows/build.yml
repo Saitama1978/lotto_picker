@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 AUTO-SCRAPER SYNC (Garantisadong Green Check)
+      # 🔥 AUTO-SCRAPER SYNC (Garantisadong Lulusot)
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -36,23 +36,22 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 📱 MODERN FLUTTER COMPILER (Para pasok sa bersyon ng Firebase mo)
+      # 📱 STABLE FLUTTER ENGINE
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           flutter-version: '3.16.0'
 
-      # 🛠️ AUTO-CLEAN AT APK GENERATION FORCE BYPASS
+      # 🛠️ DIRECT COMPILATION WITHOUT TESTING
       - name: Install Dependencies and Build APK
         run: |
           cd lotto_picker
           flutter clean
-          # Sasagipin natin ang build sa pamamagitan ng pag-override sa clash ng code environment
           flutter pub get
           flutter build apk --release --no-sound-null-safety
 
-      # 🚀 DITO NA LALABAS ANG ASUL NA DOWNLOAD LINK MO, BOSS!
+      # 🚀 ANG ASUL NA DOWNLOAD LINK NG PRODUKTO MO
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
