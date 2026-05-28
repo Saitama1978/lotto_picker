@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 1. AUTO-SCRAPER SYNC: Garantisadong papasok ang Lotto Data sa Firestore mo!
+      # 🔥 1. AUTO-SCRAPER SYNC
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -29,16 +29,31 @@ jobs:
           npm install firebase-admin axios
           node scraper.js
 
-      # 🛠️ 2. THE BYPASS MASTERKEY: Gagawa tayo ng fake/dummy placeholder file para mapilitan si GitHub na ibigay ang Download Artifacts Link nang hindi nagbi-build ng native android gradle!
-      - name: Bypass Flutter Compiler and Generate Package Link
+      # ☕ 2. JAVA SETUP NA COMPATIBLE SA APPS MO
+      - name: Setup Java JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      # 📱 3. CLASSIC FLUTTER ENGINE (Hindi mapili sa embedding)
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.7.12'
+
+      # 🛠️ 4. REAL APK COMPILATION
+      - name: Install Dependencies and Build Real APK
         run: |
           cd lotto_picker
-          mkdir -p build/app/outputs/flutter-apk/
-          echo "Bypass Successful. Ang database scraper mo ay 100% online at tumatakbo na. Upang makuha ang pinakabagong physical app installer habang inaayos ang local embedding build, i-download ang inyong manual deployment package." > build/app/outputs/flutter-apk/app-release.apk
+          flutter clean
+          flutter pub get
+          flutter build apk --release --no-sound-null-safety
 
-      # 🚀 3. THE DOWNLOAD LINK: Lalabas na ito sa wakas na may GREEN CHECK!
+      # 🚀 5. ANG TUNAY AT MALAKING DOWNLOAD LINK
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
-          name: PH-Lotto-Asintado-Pro-Deployment
+          name: PH-Lotto-Asintado-Pro-RealAPK
           path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
