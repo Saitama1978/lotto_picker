@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 AUTO-SCRAPER SYNC (GREEN CHECK NAMAN NA ITO)
+      # 🔥 AUTO-SCRAPER SYNC (GREEN CHECK)
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -29,29 +29,31 @@ jobs:
           npm install firebase-admin axios
           node scraper.js
 
-      # ☕ JAVA SETUP PARA SA ANDROID (Java 11 ang pinaka-compatible sa classic stable engines)
+      # ☕ JAVA SETUP PARA SA ANDROID
       - name: Setup Java JDK
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '11'
 
-      # 📱 FLUTTER COMPILER SETUP (Ibinalik natin sa 3.10.0 para tanggapin ang classic setup mo nang walang embedding checks)
+      # 📱 FLUTTER COMPILER SETUP
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.10.0'
+          flutter-version: '3.10.6' # Tinegsh natin sa 3.10.6 para sa mas stable na Dart compatibility
 
-      # 🛠️ RE-INITIALIZE AT BUILD PROCESS
+      # 🛠️ FORCE DEPENDENCY RESOLUTION BYPASS
       - name: Install Dependencies and Build APK
         run: |
           cd lotto_picker
           flutter clean
+          # Pipilitin natin si Flutter na i-upgrade ang mga lumang plugins na nag-aaway
+          flutter pub upgrade --major-versions --no-example
           flutter pub get
           flutter build apk --release --no-sound-null-safety
 
-      # 🚀 DITO NA LALABAS ANG KULAY ASUL NA DOWNLOAD LINK NG PRODUKTO MO
+      # 🚀 DOWNLOAD LINK NG APK PRODUCT
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
