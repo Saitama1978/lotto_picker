@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 1. AUTO-SCRAPER SYNC (Garantisadong Lulusot)
+      # 🔥 1. AUTO-SCRAPER SYNC
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -34,31 +34,25 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '11'
 
-      # 📱 3. FLUTTER COMPILER SETUP (Sakto sa Dart SDK `>=3.0.0`)
+      # 📱 3. CLASSIC FLUTTER ENGINE (Dito maluwag ang Firebase plugins mo)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.16.0'
+          flutter-version: '3.3.10'
 
-      # 🛠️ 4. THE ULTIMATE BYPASS COMPILATION
-      - name: Force Build Real APK Without Plugin Check
+      # 🛠️ 4. BASIC BUILD AT IMPLEMENTATION
+      - name: Install Dependencies and Build APK
         run: |
           cd lotto_picker
-          flutter clean
-          
-          # 🚀 MASTER STRIKE: Buburahin natin pansamantala ang dependency verification sa lock file 
-          # para pilitin ang compiler na laktawan ang Android v2 check ng Firebase plugin.
-          flutter pub get --no-example
-          
-          # I-compile ang totoong APK installer code gamit ang sub-compiler flag override
-          flutter build apk --release --no-sound-null-safety --no-pub
+          flutter pub get
+          flutter build apk --release --no-sound-null-safety
 
-      # 🚀 5. ANG TUNAY NA DOWNLOAD LINK (Dito mo makikita ang MB size)
+      # 🚀 5. ANG REAL APK DOWNLOAD LINK
       - name: Upload Final APK Product
         uses: actions/upload-artifact@v4
         with:
-          name: PH-Lotto-Asintado-Pro-INSTALLER
+          name: PH-Lotto-Asintado-Pro
           path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
