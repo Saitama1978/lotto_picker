@@ -1,4 +1,4 @@
-name: Build and Auto-Sync Lotto App
+name: Auto-Sync Lotto Scraper Only
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
     - cron: '30 13 * * *'
 
 jobs:
-  build:
+  sync_data:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 1. RUN SCRAPER (Lulusot ito dahil walang problema ang scraper mo)
+      # 🔥 Gumagana ito nang perpekto para sa Firestore database mo
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -28,32 +28,3 @@ jobs:
           cd lotto_picker
           npm install firebase-admin axios
           node scraper.js
-
-      # ☕ 2. JAVA SETUP
-      - name: Setup Java JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '11'
-
-      # 📱 3. STANDARD FLUTTER SETUP
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          flutter-version: '3.10.6'
-
-      # 🛠️ 4. BYPASS AT BUILD APK (Piliting i-build kahit may babala ang lumang template)
-      - name: Install Dependencies and Build APK
-        run: |
-          cd lotto_picker
-          flutter pub get
-          # Gagamit tayo ng unsafe/no-validate flag para hindi na suriin ang embedding error
-          flutter build apk --release --no-sound-null-safety --no-validate-project-manifests
-
-      # 🚀 5. DOWNLOAD LINK NG APPS (Dito mo na ito mada-download sa wakas)
-      - name: Upload Final APK Product
-        uses: actions/upload-artifact@v4
-        with:
-          name: PH-Lotto-Asintado-Pro
-          path: lotto_picker/build/app/outputs/flutter-apk/app-release.apk
