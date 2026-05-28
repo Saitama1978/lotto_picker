@@ -1,16 +1,16 @@
-name: Auto-Sync Lotto Scraper Only
+name: Auto-Sync Lotto Scraper & APK Builder
 
 on:
   push:
     branches:
       - main
   schedule:
-    - cron: '30 13 * * *'
+    - cron: '30 13 * * *' # Araw-araw na takbo ng scraper para sa live results
 
 jobs:
+  # HAKBANG 1: Patakbuhin ang Scraper para sa Live Firebase Data
   sync_data:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -20,7 +20,6 @@ jobs:
         with:
           node-version: '18'
 
-      # 🔥 Ito lang ang patatakbuhin natin para 100% laging GREEN CHECK ang workflow mo!
       - name: Run Auto PCSO Scraper to Firestore
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -28,3 +27,41 @@ jobs:
           cd lotto_picker
           npm install firebase-admin axios
           node scraper.js
+
+  # HAKBANG 2: Automatic na I-build ang Premium APK para may Download Button
+  build_apk:
+    runs-on: ubuntu-latest
+    needs: sync_data # Hihintayin munang matapos ang scraper bago mag-build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter Build Environment
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Cmake and Ninja Compiler
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: Fetch App Package Dependencies
+        run: |
+          cd fresh_lotto_app
+          flutter pub get
+
+      - name: Compile and Build Release APK
+        run: |
+          cd fresh_lotto_app
+          flutter build apk --release
+
+      - name: Generate and Upload Download Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lotto-Asintado-Premium-APK
+          path: fresh_lotto_app/build/app/outputs/flutter-apk/app-release.apk
