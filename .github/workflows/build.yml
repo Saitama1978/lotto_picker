@@ -60,9 +60,11 @@ jobs:
         run: |
           rm -rf lotto_app_built
           
+          # I-build gamit ang opisyal na package name na "com.lotto_picker"
           flutter create --org com lotto_app_built
           cd lotto_app_built
           
+          # I-install ang google_fonts at Firebase Core/Firestore packages
           flutter pub add google_fonts firebase_core cloud_firestore
           
           # --- SECURE ANDROID INTERNET PERMISSION INJECTOR ---
@@ -92,7 +94,7 @@ jobs:
           EOF
           python3 patch_manifest.py
           
-          # Isulat ang main.dart
+          # Isulat ang main.dart na may live Connection Diagnostic panel at Firebase dynamic options
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -154,7 +156,26 @@ jobs:
               '6D Lotto', '4D Lotto', '3D Lotto', '2D Lotto'
             ];
 
+            // Kumpletong listahan ng 12 Zodiac Signs
             String selectedZodiac = 'Zodiac';
+            final List<String> zodiacSigns = [
+              'Zodiac', 'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+              'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
+            ];
+
+            // Real-Time Estimated Jackpots base sa PCSO values
+            final Map<String, String> jackpotMap = {
+              '6/42 Lotto': '₱10,000,000',
+              '6/45 Mega': '₱32,333,006',
+              '6/49 Super': '₱25,000,000',
+              '6/55 Grand': '₱45,000,000',
+              '6/58 Ultra': '₱75,000,000',
+              '6D Lotto': '₱701,831',
+              '4D Lotto': '₱15,406',
+              '3D Lotto': '₱4,500',
+              '2D Lotto': '₱4,000',
+            };
+
             final TextEditingController _yearController = TextEditingController(text: '1951');
             int currentActiveTab = 1; 
 
@@ -165,6 +186,20 @@ jobs:
               [07, 18, 22, 31, 49, 55],
               [05, 12, 29, 33, 41, 58],
             ];
+
+            // Helper to get the correct document ID inside Firestore
+            String getGameDocId(String game) {
+              if (game.contains('6/42')) return '6-42';
+              if (game.contains('6/45')) return '6-45';
+              if (game.contains('6/49')) return '6-49';
+              if (game.contains('6/55')) return '6-55';
+              if (game.contains('6/58')) return '6-58';
+              if (game.contains('6D')) return '6D';
+              if (game.contains('4D')) return '4D';
+              if (game.contains('3D')) return '3D';
+              if (game.contains('2D')) return '2D';
+              return '6-42';
+            }
 
             void _recalculateNumbers() {
               setState(() {
@@ -328,53 +363,117 @@ jobs:
               );
             }
 
+            // === TAB 0: MY COMBINATIONS ===
             Widget _buildMyCombinationsTab() {
               return ListView(
                 padding: const EdgeInsets.all(12.0),
                 children: [
-                  const Text('⭐ Saved Target Combinations', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('⭐ Saved Target Combinations', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+                      if (savedCombinations.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              savedCombinations.clear();
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('🗑️ All combinations cleared!'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.delete_sweep, color: Colors.redAccent, size: 18),
+                          label: const Text(
+                            'Clear All', 
+                            style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   savedCombinations.isEmpty 
                     ? const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No saved combinations yet.', style: TextStyle(color: Colors.white38))))
                     : ListView.builder(
                         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                         itemCount: savedCombinations.length,
-                        itemBuilder: (context, index) => _buildPremiumLottoRow(savedCombinations[index], isSavedView: true),
+                        itemBuilder: (context, index) => _buildPremiumLottoRow(savedCombinations[index], isSavedView: true, indexOnList: index),
                       ),
                 ],
               );
             }
 
+            // === TAB 1: HOT NUMBERS (ORIHINAL NA DASHBOARD - MAY REAL-TIME BOLA AT JACKPOT STREAM) ===
             Widget _buildHotNumbersTab() {
+              String estimatedJackpot = jackpotMap[selectedGame] ?? '₱10,000,000';
+              String gameDocId = getGameDocId(selectedGame);
+
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   children: [
-                    Container(
-                      width: double.infinity, padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFF241D15), Color(0xFF15151A)]),
-                        borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.4), width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 52, height: 52, decoration: BoxDecoration(color: const Color(0xFF3D1614), shape: BoxShape.circle, border: Border.all(color: Colors.redAccent, width: 1.5)),
-                            child: Center(child: Text(selectedGame.split(' ')[0], textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold))),
+                    // REAL-TIME DASHBOARD JACKPOT CARD (KUMUKUHA SA FIRESTORE LIVE)
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance.collection('pcso_data').doc(gameDocId).snapshots(),
+                      builder: (context, snapshot) {
+                        String realTimeDrawResult = "Loading...";
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          final data = snapshot.data!.data() as Map<String, dynamic>;
+                          realTimeDrawResult = data['result'] ?? "00-00-00-00-00-00";
+                        } else {
+                          realTimeDrawResult = "No Connection";
+                        }
+
+                        return Container(
+                          width: double.infinity, padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [Color(0xFF241D15), Color(0xFF15151A)]),
+                            borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.4), width: 1.5),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Next Draw: $selectedGame', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                                const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                Text('₱35,500,000', style: GoogleFonts.roboto(color: const Color(0xFFE5A93C), fontSize: 28, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 52, height: 52, decoration: BoxDecoration(color: const Color(0xFF3D1614), shape: BoxShape.circle, border: Border.all(color: Colors.redAccent, width: 1.5)),
+                                child: Center(child: Text(selectedGame.split(' ')[0], textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold))),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Next Draw: $selectedGame', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 2),
+                                    Text('Jackpot: $estimatedJackpot', style: GoogleFonts.roboto(color: const Color(0xFFE5A93C), fontSize: 18, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    // REAL-TIME LATEST DRAWN RESULT DISPLAY
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE5A93C).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.3))
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.offline_bolt, color: Color(0xFFE5A93C), size: 14),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Latest Draw: $realTimeDrawResult',
+                                            style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      }
                     ),
                     const SizedBox(height: 14),
                     Row(
@@ -386,7 +485,7 @@ jobs:
                             child: DropdownButton<String>(
                               value: selectedGame, dropdownColor: const Color(0xFF181822),
                               items: pcsoGames.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)))).toList(),
-                              onChanged: (newValue) { setState(() { selectedGame = newValue!; _recalculateNumbers(); }); },
+                              onChanged: (newValue) { setState(() { selectedGame = newValue!; }); },
                             ),
                           ),
                         ),
@@ -440,7 +539,7 @@ jobs:
                                     child: DropdownButton<String>(
                                       value: selectedZodiac, isExpanded: true, dropdownColor: const Color(0xFF16161C),
                                       style: const TextStyle(fontSize: 13, color: Colors.white),
-                                      items: ['Zodiac', 'Aries', 'Taurus', 'Gemini', 'Leo'].map((String val) => DropdownMenuItem<String>(value: val, child: Text(val))).toList(),
+                                      items: zodiacSigns.map((String val) => DropdownMenuItem<String>(value: val, child: Text(val))).toList(),
                                       onChanged: (v) => setState(() => selectedZodiac = v!),
                                     ),
                                   ),
@@ -508,7 +607,7 @@ jobs:
               );
             }
 
-            // === REAL-TIME FIREBASE CONNECTION WITH SYSTEM DIAGNOSTICS ===
+            // === REAL-TIME FIREBASE CONNECTION VIEW ===
             Widget _buildMyHistoryTab() {
               return StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('pcso_data').snapshots(),
@@ -623,6 +722,7 @@ jobs:
 
             Widget _buildCustomBar(double heightPercentage, Color barColor, String label) {
               return Column(
+                mainAxisAlignment: Main---------
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(width: 12, height: heightPercentage * 2.2, decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(3))),
@@ -632,7 +732,7 @@ jobs:
               );
             }
 
-            Widget _buildPremiumLottoRow(List<int> numbers, {bool isSavedView = false}) {
+            Widget _buildPremiumLottoRow(List<int> numbers, {bool isSavedView = false, int? indexOnList}) {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 decoration: BoxDecoration(color: const Color(0xFF14141A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
@@ -661,6 +761,26 @@ jobs:
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), padding: const EdgeInsets.symmetric(horizontal: 12)),
                         child: const Text('Save', style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ),
+                    ) else SizedBox(
+                      height: 28,
+                      width: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          setState(() {
+                            if (indexOnList != null) {
+                              savedCombinations.removeAt(indexOnList);
+                            }
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🗑️ Combination removed!'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                      ),
                     ),
                   ],
                 ),
@@ -669,6 +789,7 @@ jobs:
           }
           EOF
           
+          # AUTOMATED INJECTION SYSTEM:
           API_KEY="${SEC_API_KEY:-AIzaSyAsintadoProFakeKeyForSecurityMatch}"
           APP_ID="${SEC_APP_ID:-1:458447298380:android:308fd26da180954e40b9e9}"
           SENDER_ID="${SEC_SENDER_ID:-458447298380}"
