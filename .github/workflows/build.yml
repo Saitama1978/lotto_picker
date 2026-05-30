@@ -54,7 +54,7 @@ jobs:
           # I-install ang tamang package para sa fonts
           flutter pub add google_fonts
           
-          # Isulat ang main.dart na corrected at walang compiler errors
+          # Isulat ang main.dart na kompleto ang lahat ng PCSO draw games
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -88,39 +88,80 @@ jobs:
           }
 
           class _PremiumDashboardScreenState extends State<PremiumDashboardScreen> {
+            // Kumpletong listahan ng lahat ng PCSO Draws
             String selectedGame = '6/42';
+            final List<String> pcsoGames = [
+              '6/42 Lotto', '6/45 Mega', '6/49 Super', '6/55 Grand', '6/58 Ultra',
+              '6D Lotto', '4D Lotto', '3D Lotto', '2D Lotto'
+            ];
+
             String selectedZodiac = 'Zodiac';
             final TextEditingController _yearController = TextEditingController(text: '1951');
-            int currentActiveTab = 2; 
+            int currentActiveTab = 1; 
 
+            // Simulaang listahan ng mga bola (naka-angkop sa napiling laro)
             List<List<int>> currentCombinations = [
-              [11, 25, 38, 50, 67],
-              [11, 25, 38, 50, 67],
-              [11, 25, 38, 50, 67],
-              [11, 25, 38, 50, 67],
+              [11, 25, 38, 50, 61, 67],
+              [02, 15, 24, 39, 44, 52],
+              [07, 18, 22, 31, 49, 55],
+              [05, 12, 29, 33, 41, 58],
             ];
+
+            @override
+            void initState() {
+              super.initState();
+              selectedGame = pcsoGames[0]; // I-default sa 6/42 Lotto
+            }
 
             void _recalculateNumbers() {
               setState(() {
-                int maxLimit = selectedGame == '6/42' ? 42 : (selectedGame == '6/45' ? 45 : 58);
+                int totalBalls = 6;
+                int maxLimit = 42;
+                bool allowDuplicates = false;
+
+                // Dynamic configuration depende sa piniling laro
+                if (selectedGame.contains('6/42')) { totalBalls = 6; maxLimit = 42; }
+                else if (selectedGame.contains('6/45')) { totalBalls = 6; maxLimit = 45; }
+                else if (selectedGame.contains('6/49')) { totalBalls = 6; maxLimit = 49; }
+                else if (selectedGame.contains('6/55')) { totalBalls = 6; maxLimit = 55; }
+                else if (selectedGame.contains('6/58')) { totalBalls = 6; maxLimit = 58; }
+                else if (selectedGame.contains('6D')) { totalBalls = 6; maxLimit = 9; allowDuplicates = true; }
+                else if (selectedGame.contains('4D')) { totalBalls = 4; maxLimit = 9; allowDuplicates = true; }
+                else if (selectedGame.contains('3D')) { totalBalls = 3; maxLimit = 9; allowDuplicates = true; }
+                else if (selectedGame.contains('2D')) { totalBalls = 2; maxLimit = 31; allowDuplicates = true; }
+
                 final uniqueSeed = DateTime.now().millisecondsSinceEpoch;
                 
                 currentCombinations = List.generate(4, (index) {
                   List<int> combination = [];
-                  while (combination.length < 5) {
-                    int generatedNum = ((uniqueSeed + index * 11 + combination.length * 13) % maxLimit) + 1;
-                    if (!combination.contains(generatedNum)) {
+                  while (combination.length < totalBalls) {
+                    int generatedNum;
+                    if (maxLimit == 9) {
+                      // Para sa mga digit games (0-9)
+                      generatedNum = (uniqueSeed + index * 17 + combination.length * 23) % 10;
+                    } else {
+                      // Para sa mga lotto games (1 hanggang maxLimit)
+                      generatedNum = ((uniqueSeed + index * 11 + combination.length * 13) % maxLimit) + 1;
+                    }
+
+                    if (allowDuplicates) {
                       combination.add(generatedNum);
+                    } else {
+                      if (!combination.contains(generatedNum)) {
+                        combination.add(generatedNum);
+                      }
                     }
                   }
-                  combination.sort();
+                  if (!allowDuplicates) {
+                    combination.sort();
+                  }
                   return combination;
                 });
               });
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('🎯 New combinations generated for $selectedGame!'),
+                  content: Text('🎯 New numbers generated for $selectedGame!'),
                   backgroundColor: const Color(0xFF2C1C4D),
                 ),
               );
@@ -211,8 +252,12 @@ jobs:
                                       shape: BoxShape.circle,
                                       border: Border.all(color: Colors.redAccent, width: 1.5),
                                     ),
-                                    child: const Center(
-                                      child: Text('6/42\nLOTTO', textAlign: TextAlign.center, style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: Center(
+                                      child: Text(
+                                        selectedGame.split(' ')[0], 
+                                        textAlign: TextAlign.center, 
+                                        style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -220,7 +265,7 @@ jobs:
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Next Draw: $selectedGame Lotto', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                        Text('Next Draw: $selectedGame', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                                         const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 11)),
                                         Text('₱35,500,000', style: GoogleFonts.roboto(color: const Color(0xFFE5A93C), fontSize: 28, fontWeight: FontWeight.bold)),
                                       ],
@@ -240,10 +285,18 @@ jobs:
                                     child: DropdownButton<String>(
                                       value: selectedGame,
                                       dropdownColor: const Color(0xFF181822),
-                                      items: ['6/42', '6/45', '6/49', '6/55', '6/58'].map((String value) {
-                                        return DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)));
+                                      items: pcsoGames.map((String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value, 
+                                          child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))
+                                        );
                                       }).toList(),
-                                      onChanged: (newValue) => setState(() => selectedGame = newValue!),
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          selectedGame = newValue!;
+                                          _recalculateNumbers(); // Awtomatikong baguhin ang format ng bola
+                                        });
+                                      },
                                     ),
                                   ),
                                 ),
@@ -399,12 +452,16 @@ jobs:
                     const Icon(Icons.star, color: Color(0xFFE5A93C), size: 16),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: numbers.map((n) => Container(
-                          width: 34, height: 34, decoration: const BoxDecoration(color: Color(0xFF22222B), shape: BoxShape.circle),
-                          child: Center(child: Text(n.toString().padLeft(2, '0'), style: const TextStyle(color: Color(0xFFE5A93C), fontWeight: FontWeight.bold, fontSize: 13))),
-                        )).toList(),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: numbers.map((n) => Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 34, height: 34, decoration: const BoxDecoration(color: Color(0xFF22222B), shape: BoxShape.circle),
+                            child: Center(child: Text(n.toString().padLeft(2, '0'), style: const TextStyle(color: Color(0xFFE5A93C), fontWeight: FontWeight.bold, fontSize: 13))),
+                          )).toList(),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -434,7 +491,6 @@ jobs:
           # Simulan ang compilation ng APK
           flutter build apk --release --split-per-abi
 
-      # --- ETO ANG KULANG NA HAKBANG PARA SA DOWNLOAD LINK ---
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
