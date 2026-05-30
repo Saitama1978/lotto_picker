@@ -54,7 +54,7 @@ jobs:
           # I-install ang tamang package para sa fonts
           flutter pub add google_fonts
           
-          # Isulat ang main.dart na kompleto ang lahat ng PCSO draw games
+          # Isulat ang main.dart na may ganap na gumaganang tabs
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -88,8 +88,7 @@ jobs:
           }
 
           class _PremiumDashboardScreenState extends State<PremiumDashboardScreen> {
-            // Kumpletong listahan ng lahat ng PCSO Draws
-            String selectedGame = '6/42';
+            String selectedGame = '6/42 Lotto';
             final List<String> pcsoGames = [
               '6/42 Lotto', '6/45 Mega', '6/49 Super', '6/55 Grand', '6/58 Ultra',
               '6D Lotto', '4D Lotto', '3D Lotto', '2D Lotto'
@@ -97,9 +96,15 @@ jobs:
 
             String selectedZodiac = 'Zodiac';
             final TextEditingController _yearController = TextEditingController(text: '1951');
+            
+            // Dito kinokontrol kung anong screen ang aktibo (0 = Combinations, 1 = Hot Numbers, etc.)
             int currentActiveTab = 1; 
 
-            // Simulaang listahan ng mga bola (naka-angkop sa napiling laro)
+            // Mga listahan para sa naka-save na combinations
+            List<List<int>> savedCombinations = [
+              [08, 14, 22, 35, 41, 42]
+            ];
+
             List<List<int>> currentCombinations = [
               [11, 25, 38, 50, 61, 67],
               [02, 15, 24, 39, 44, 52],
@@ -107,19 +112,12 @@ jobs:
               [05, 12, 29, 33, 41, 58],
             ];
 
-            @override
-            void initState() {
-              super.initState();
-              selectedGame = pcsoGames[0]; // I-default sa 6/42 Lotto
-            }
-
             void _recalculateNumbers() {
               setState(() {
                 int totalBalls = 6;
                 int maxLimit = 42;
                 bool allowDuplicates = false;
 
-                // Dynamic configuration depende sa piniling laro
                 if (selectedGame.contains('6/42')) { totalBalls = 6; maxLimit = 42; }
                 else if (selectedGame.contains('6/45')) { totalBalls = 6; maxLimit = 45; }
                 else if (selectedGame.contains('6/49')) { totalBalls = 6; maxLimit = 49; }
@@ -137,10 +135,8 @@ jobs:
                   while (combination.length < totalBalls) {
                     int generatedNum;
                     if (maxLimit == 9) {
-                      // Para sa mga digit games (0-9)
                       generatedNum = (uniqueSeed + index * 17 + combination.length * 23) % 10;
                     } else {
-                      // Para sa mga lotto games (1 hanggang maxLimit)
                       generatedNum = ((uniqueSeed + index * 11 + combination.length * 13) % maxLimit) + 1;
                     }
 
@@ -152,9 +148,7 @@ jobs:
                       }
                     }
                   }
-                  if (!allowDuplicates) {
-                    combination.sort();
-                  }
+                  if (!allowDuplicates) combination.sort();
                   return combination;
                 });
               });
@@ -167,6 +161,20 @@ jobs:
               );
             }
 
+            void _saveCombination(List<int> combo) {
+              setState(() {
+                if (!savedCombinations.any((element) => element.toString() == combo.toString())) {
+                  savedCombinations.add(combo);
+                }
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⭐ Combination saved successfully!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+
             @override
             Widget build(BuildContext context) {
               return Scaffold(
@@ -174,10 +182,6 @@ jobs:
                   backgroundColor: const Color(0xFF26183B),
                   elevation: 8,
                   shadowColor: Colors.black54,
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                    onPressed: () {},
-                  ),
                   title: Row(
                     children: [
                       Container(
@@ -197,11 +201,7 @@ jobs:
                           children: [
                             Text(
                               'LOTTO ASINTADO PRO',
-                              style: GoogleFonts.orbitron(
-                                fontSize: 13, 
-                                fontWeight: FontWeight.w800, 
-                                color: Colors.white,
-                              ),
+                              style: GoogleFonts.orbitron(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
                             ),
                             const Text(
                               'Developer: Renante Fullo', 
@@ -215,6 +215,7 @@ jobs:
                 ),
                 body: Column(
                   children: [
+                    // Dynamic navigation tabs selector
                     Container(
                       color: const Color(0xFF1E1233),
                       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -229,204 +230,274 @@ jobs:
                       ),
                     ),
                     Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF241D15), Color(0xFF15151A)],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.4), width: 1.5),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 52, height: 52,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF3D1614),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.redAccent, width: 1.5),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        selectedGame.split(' ')[0], 
-                                        textAlign: TextAlign.center, 
-                                        style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Next Draw: $selectedGame', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                                        const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                        Text('₱35,500,000', style: GoogleFonts.roboto(color: const Color(0xFFE5A93C), fontSize: 28, fontWeight: FontWeight.bold)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  height: 40,
-                                  decoration: BoxDecoration(color: const Color(0xFF181822), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white12)),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: selectedGame,
-                                      dropdownColor: const Color(0xFF181822),
-                                      items: pcsoGames.map((String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value, 
-                                          child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))
-                                        );
-                                      }).toList(),
-                                      onChanged: (newValue) {
-                                        setState(() {
-                                          selectedGame = newValue!;
-                                          _recalculateNumbers(); // Awtomatikong baguhin ang format ng bola
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                _buildSquareActionIcon(Icons.trending_up),
-                                const SizedBox(width: 6),
-                                _buildSquareActionIcon(Icons.bar_chart),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    height: 200, padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text('Hot Number Frequency', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
-                                        const SizedBox(height: 16),
-                                        Expanded(
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: [
-                                              _buildCustomBar(45, Colors.redAccent, '1'),
-                                              _buildCustomBar(38, Colors.orangeAccent, '2'),
-                                              _buildCustomBar(32, Colors.greenAccent, '3'),
-                                              _buildCustomBar(34, Colors.blueAccent, '4'),
-                                              _buildCustomBar(29, Colors.purpleAccent, '5'),
-                                              _buildCustomBar(18, Colors.pinkAccent, '6'),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Container(
-                                    height: 200, padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text('Lucky Generator', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10), height: 38,
-                                          decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white12)),
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<String>(
-                                              value: selectedZodiac, isExpanded: true, dropdownColor: const Color(0xFF16161C),
-                                              style: const TextStyle(fontSize: 13, color: Colors.white),
-                                              items: ['Zodiac', 'Aries', 'Taurus', 'Gemini', 'Leo'].map((String val) => DropdownMenuItem<String>(value: val, child: Text(val))).toList(),
-                                              onChanged: (v) => setState(() => selectedZodiac = v!),
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          height: 38,
-                                          child: TextField(
-                                            controller: _yearController, keyboardType: TextInputType.number, style: const TextStyle(fontSize: 13),
-                                            decoration: InputDecoration(
-                                              contentPadding: const EdgeInsets.symmetric(horizontal: 10), filled: true, fillColor: Colors.black38, labelText: 'Birth Year', labelStyle: const TextStyle(color: Colors.white38, fontSize: 11),
-                                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Colors.white12)),
-                                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5A93C))),
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: double.infinity, height: 36,
-                                          child: ElevatedButton(
-                                            onPressed: _recalculateNumbers,
-                                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1812), side: const BorderSide(color: Color(0xFFE5A93C), width: 1.2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-                                            child: const Text('Calculate', style: TextStyle(color: Color(0xFFE5A93C), fontSize: 13, fontWeight: FontWeight.bold)),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            ListView.builder(
-                              shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                              itemCount: currentCombinations.length,
-                              itemBuilder: (context, index) => _buildPremiumLottoRow(currentCombinations[index]),
-                            ),
-                          ],
-                        ),
+                      child: IndexedStack(
+                        index: currentActiveTab,
+                        children: [
+                          _buildMyCombinationsTab(),
+                          _buildHotNumbersTab(),
+                          _buildStrategyGuideTab(),
+                          _buildMyHistoryTab(),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                floatingActionButton: FloatingActionButton(
+                floatingActionButton: currentActiveTab == 1 ? FloatingActionButton(
                   backgroundColor: const Color(0xFF23163A),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFE5A93C), width: 1.5)),
                   onPressed: _recalculateNumbers,
-                  child: const Icon(Icons.add, color: Color(0xFFE5A93C), size: 28),
-                ),
+                  child: const Icon(Icons.refresh, color: Color(0xFFE5A93C), size: 28),
+                ) : null,
               );
             }
 
             Widget _buildNavigationTab(int index, IconData icon, String title) {
               bool isCurrent = currentActiveTab == index;
-              return GestureDetector(
-                onTap: () => setState(() => currentActiveTab = index),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                  decoration: BoxDecoration(border: isCurrent ? const Border(bottom: BorderSide(color: Color(0xFFE5A93C), width: 2.5)) : null),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, color: isCurrent ? const Color(0xFFE5A93C) : Colors.white30, size: 20),
-                      const SizedBox(height: 4),
-                      Text(title, style: TextStyle(fontSize: 9, fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal, color: isCurrent ? const Color(0xFFE5A93C) : Colors.white30)),
-                    ],
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => currentActiveTab = index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(border: isCurrent ? const Border(bottom: BorderSide(color: Color(0xFFE5A93C), width: 2.5)) : null),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, color: isCurrent ? const Color(0xFFE5A93C) : Colors.white30, size: 18),
+                        const SizedBox(height: 4),
+                        Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 8, fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal, color: isCurrent ? const Color(0xFFE5A93C) : Colors.white30)),
+                      ],
+                    ),
                   ),
                 ),
               );
             }
 
+            // === TAB 0: MY COMBINATIONS ===
+            Widget _buildMyCombinationsTab() {
+              return ListView(
+                padding: const EdgeInsets.all(12.0),
+                children: [
+                  const Text('⭐ Saved Target Combinations', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+                  const SizedBox(height: 12),
+                  savedCombinations.isEmpty 
+                    ? const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No saved combinations yet.', style: TextStyle(color: Colors.white38))))
+                    : ListView.builder(
+                        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                        itemCount: savedCombinations.length,
+                        itemBuilder: (context, index) => _buildPremiumLottoRow(savedCombinations[index], isSavedView: true),
+                      ),
+                ],
+              );
+            }
+
+            // === TAB 1: HOT NUMBERS (ORIHINAL NA DASHBOARD) ===
+            Widget _buildHotNumbersTab() {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity, padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF241D15), Color(0xFF15151A)]),
+                        borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.4), width: 1.5),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52, height: 52, decoration: BoxDecoration(color: const Color(0xFF3D1614), shape: BoxShape.circle, border: Border.all(color: Colors.redAccent, width: 1.5)),
+                            child: Center(child: Text(selectedGame.split(' ')[0], textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold))),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Next Draw: $selectedGame', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                Text('₱35,500,000', style: GoogleFonts.roboto(color: const Color(0xFFE5A93C), fontSize: 28, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12), height: 40,
+                          decoration: BoxDecoration(color: const Color(0xFF181822), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white12)),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedGame, dropdownColor: const Color(0xFF181822),
+                              items: pcsoGames.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)))).toList(),
+                              onChanged: (newValue) { setState(() { selectedGame = newValue!; _recalculateNumbers(); }); },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        _buildSquareActionIcon(Icons.trending_up),
+                        const SizedBox(width: 6),
+                        _buildSquareActionIcon(Icons.bar_chart),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 200, padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Hot Number Frequency', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 16),
+                                Expanded(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      _buildCustomBar(45, Colors.redAccent, '19'),
+                                      _buildCustomBar(38, Colors.orangeAccent, '27'),
+                                      _buildCustomBar(32, Colors.greenAccent, '05'),
+                                      _buildCustomBar(34, Colors.blueAccent, '41'),
+                                      _buildCustomBar(29, Colors.purpleAccent, '12'),
+                                      _buildCustomBar(18, Colors.pinkAccent, '33'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            height: 200, padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Lucky Generator', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10), height: 38,
+                                  decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white12)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedZodiac, isExpanded: true, dropdownColor: const Color(0xFF16161C),
+                                      style: const TextStyle(fontSize: 13, color: Colors.white),
+                                      items: ['Zodiac', 'Aries', 'Taurus', 'Gemini', 'Leo'].map((String val) => DropdownMenuItem<String>(value: val, child: Text(val))).toList(),
+                                      onChanged: (v) => setState(() => selectedZodiac = v!),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: 38,
+                                  child: TextField(
+                                    controller: _yearController, keyboardType: TextInputType.number, style: const TextStyle(fontSize: 13),
+                                    decoration: InputDecoration(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10), filled: true, fillColor: Colors.black38, labelText: 'Birth Year', labelStyle: const TextStyle(color: Colors.white38, fontSize: 11),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Colors.white12)),
+                                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5A93C))),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: double.infinity, height: 36,
+                                  child: ElevatedButton(
+                                    onPressed: _recalculateNumbers,
+                                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1812), side: const BorderSide(color: Color(0xFFE5A93C), width: 1.2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                                    child: const Text('Calculate', style: TextStyle(color: Color(0xFFE5A93C), fontSize: 13, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ListView.builder(
+                      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                      itemCount: currentCombinations.length,
+                      itemBuilder: (context, index) => _buildPremiumLottoRow(currentCombinations[index]),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // === TAB 2: STRATEGY GUIDE ===
+            Widget _buildStrategyGuideTab() {
+              return ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  Text('📐 Pattern Analysis Strategy', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFFE5A93C))),
+                  const SizedBox(height: 12),
+                  _buildGuideCard('Odd/Even Balancing', 'Ang pinakamataas na tsansa na lumabas sa PCSO ay 3 Odd at 3 Even numbers. Iwasang pumili ng panay purong diretsong pares.'),
+                  _buildGuideCard('Hot & Cold Method', 'Pagsamahin ang 2 Hot Numbers (madalas lumabas sa graph) at 3 Cold Numbers para sa balanseng tsansa.'),
+                  _buildGuideCard('Sum Mathematics Guide', 'Siguraduhin na ang kabuuang suma ng 6 na napili mong bola ay naglalaro sa pagitan ng 115 at 185.'),
+                ],
+              );
+            }
+
+            Widget _buildGuideCard(String title, String desc) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white10)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Text(desc, style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.4)),
+                  ],
+                ),
+              );
+            }
+
+            // === TAB 3: MY HISTORY ===
+            Widget _buildMyHistoryTab() {
+              return ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  const Text('📅 Recent Real-Time Cloud Draws', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+                  const SizedBox(height: 12),
+                  _buildHistoryRow('6/58 Ultra Lotto', 'May 29, 2026', '12 - 29 - 05 - 43 - 19 - 51'),
+                  _buildHistoryRow('6/49 Super Lotto', 'May 28, 2026', '02 - 18 - 22 - 31 - 40 - 09'),
+                  _buildHistoryRow('3D Lotto (9PM)', 'May 29, 2026', '7 - 4 - 2'),
+                ],
+              );
+            }
+
+            Widget _buildHistoryRow(String game, String date, String results) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFF14141A), borderRadius: BorderRadius.circular(8)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(game, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
+                        Text(date, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                      ],
+                    ),
+                    Text(results, style: GoogleFonts.robotoCondensed(color: const Color(0xFFE5A93C), fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
+              );
+            }
+
+            // === GLOBAL REUSABLE COMPONENTS ===
             Widget _buildSquareActionIcon(IconData icon) {
               return Container(
-                width: 36, height: 36,
+                width: 36, height: 40,
                 decoration: BoxDecoration(color: const Color(0xFF181822), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white10)),
                 child: Icon(icon, size: 18, color: Colors.white70),
               );
@@ -438,12 +509,12 @@ jobs:
                 children: [
                   Container(width: 12, height: heightPercentage * 2.2, decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(3))),
                   const SizedBox(height: 6),
-                  Text(label, style: const TextStyle(fontSize: 9, color: Colors.white38)),
+                  Text(label, style: const TextStyle(fontSize: 9, color: Colors.white70, fontWeight: FontWeight.bold)),
                 ],
               );
             }
 
-            Widget _buildPremiumLottoRow(List<int> numbers) {
+            Widget _buildPremiumLottoRow(List<int> numbers, {bool isSavedView = false}) {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 decoration: BoxDecoration(color: const Color(0xFF14141A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
@@ -473,10 +544,10 @@ jobs:
                       ],
                     ),
                     const SizedBox(width: 10),
-                    SizedBox(
+                    if (!isSavedView) SizedBox(
                       height: 28,
                       child: OutlinedButton(
-                        onPressed: () {},
+                        onPressed: () => _saveCombination(numbers),
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), padding: const EdgeInsets.symmetric(horizontal: 12)),
                         child: const Text('Save', style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ),
