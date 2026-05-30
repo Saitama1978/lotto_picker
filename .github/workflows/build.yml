@@ -431,5 +431,12 @@ jobs:
           }
           EOF
           
-          # Simulan na ang malinis na compilation ng APK
+          # Simulan ang compilation ng APK
           flutter build apk --release --split-per-abi
+
+      # --- ETO ANG KULANG NA HAKBANG PARA SA DOWNLOAD LINK ---
+      - name: Upload APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lotto-Asintado-Premium-APK
+          path: lotto_app_built/build/app/outputs/flutter-apk/*.apk
