@@ -1,3 +1,33 @@
+name: Auto-Sync Lotto Scraper & APK Builder
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  sync_data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Run Scraper
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -d "lotto_picker" ]; then
+            cd lotto_picker
+            npm install firebase-admin axios
+            node scraper.js || true
+          else
+            echo "Scraper folder not found, skipping..."
+          fi
+
   build_apk:
     runs-on: ubuntu-latest
     needs: sync_data
@@ -17,7 +47,7 @@
 
       - name: Compile and Inject Premium Gold Code
         run: |
-          # Itabi muna ang iyong totoong icon para hindi mabura ng 'flutter create'
+          # Itabi muna ang iyong totoong icon mula sa repo para hindi mabura mamaya
           mkdir -p /tmp/user_icon
           if [ -f "assets/icon/app_icon.png" ]; then
             cp assets/icon/app_icon.png /tmp/user_icon/
@@ -38,11 +68,11 @@
           if [ -f "/tmp/user_icon/app_icon.png" ]; then
             cp /tmp/user_icon/app_icon.png assets/icon/app_icon.png
           else
-            # Kung sakaling walang mahanap na icon, gagawa ng blankong backup para hindi mag-error
+            # Backup kung sakaling walang mahanap na icon para hindi mag-crash
             touch assets/icon/app_icon.png
           fi
           
-          # Isulat ang configuration file para sa app icon gamit ang totoong larawan mo
+          # Isulat ang configuration file para sa launcher icon
           cat << 'EOF' > flutter_launcher_icons.yaml
           flutter_launcher_icons:
             android: "launcher_icon"
@@ -53,11 +83,10 @@
           # Patakbuhin ang icon generator plugin
           flutter pub run flutter_launcher_icons
           
-          # Isulat ang pinaka-espesyal na main.dart
+          # Isulat ang BUO at KUMPLETONG main.dart ng iyong Lotto App
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
-          import 'dart:math';
 
           void main() {
             runApp(const LottoAsintadoPremiumApp());
@@ -65,14 +94,15 @@
 
           class LottoAsintadoPremiumApp extends StatelessWidget {
             const LottoAsintadoPremiumApp({super.key});
+
             @override
             Widget build(BuildContext context) {
               return MaterialApp(
                 debugShowCheckedModeBanner: false,
                 title: 'Lotto Asintado Strategy Pro',
                 theme: ThemeData.dark().copyWith(
-                  scaffoldBackgroundColor: const Color(0xFF0F0E13), 
-                  primaryColor: const Color(0xFFE5A93C), 
+                  scaffoldBackgroundColor: const Color(0xFF111115),
+                  primaryColor: const Color(0xFFE5A93C),
                 ),
                 home: const PremiumDashboardScreen(),
               );
@@ -81,6 +111,7 @@
 
           class PremiumDashboardScreen extends StatefulWidget {
             const PremiumDashboardScreen({super.key});
+
             @override
             State<PremiumDashboardScreen> createState() => _PremiumDashboardScreenState();
           }
@@ -90,8 +121,344 @@
             String selectedZodiac = 'Zodiac';
             final TextEditingController _yearController = TextEditingController(text: '1951');
             int currentActiveTab = 2; 
-            bool isCalculating = false;
 
-            final Map<String, String> jackpotPools = {
-              '6/42': '₱35,500,000',
-              '6/45': '₱58,200,000',
+            List<List<int>> currentCombinations = [
+              [11, 25, 38, 50, 67],
+              [11, 25, 38, 50, 67],
+              [11, 25, 38, 50, 67],
+              [11, 25, 38, 50, 67],
+            ];
+
+            void _recalculateNumbers() {
+              setState(() {
+                int maxLimit = selectedGame == '6/42' ? 42 : (selectedGame == '6/45' ? 45 : 58);
+                final uniqueSeed = DateTime.now().millisecondsSinceEpoch;
+                
+                currentCombinations = List.generate(4, (index) {
+                  List<int> combination = [];
+                  while (combination.length < 5) {
+                    int generatedNum = ((uniqueSeed + index * 11 + combination.length * 13) % maxLimit) + 1;
+                    if (!combination.contains(generatedNum)) {
+                      combination.add(generatedNum);
+                    }
+                  }
+                  combination.sort();
+                  return combination;
+                });
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('🎯 New combinations generated for $selectedGame!'),
+                  backgroundColor: const Color(0xFF2C1C4D),
+                ),
+              );
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(
+                  backgroundColor: const Color(0xFF26183B),
+                  elevation: 8,
+                  shadowColor: Colors.black54,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                    onPressed: () {},
+                  ),
+                  title: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5A93C).withOpacity(0.2),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFE5A93C), width: 1.5),
+                        ),
+                        child: const Icon(Icons.star, color: Color(0xFFE5A93C), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'LOTTO ASINTADO PRO',
+                              style: GoogleFonts.orbitron(
+                                fontSize: 13, 
+                                fontWeight: FontWeight.extrabold, 
+                                color: Colors.white,
+                              ),
+                            ),
+                            const Text(
+                              'Developer: Renante Fullo', 
+                              style: TextStyle(fontSize: 10, color: Colors.white54),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                body: Column(
+                  children: [
+                    Container(
+                      color: const Color(0xFF1E1233),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildNavigationTab(0, Icons.list_alt, 'MY COMBINATIONS'),
+                          _buildNavigationTab(1, Icons.local_fire_department, 'HOT NUMBERS'),
+                          _buildNavigationTab(2, Icons.menu_book, 'STRATEGY GUIDE'),
+                          _buildNavigationTab(3, Icons.history, 'MY HISTORY'),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF241D15), Color(0xFF15151A)],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.4), width: 1.5),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 52, height: 52,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF3D1614),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.redAccent, width: 1.5),
+                                    ),
+                                    child: const Center(
+                                      child: Text('6/42\nLOTTO', textAlign: TextAlign.center, style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Next Draw: $selectedGame Lotto', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                        const Text('Current Estimated Jackpot', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                        Text('₱35,500,000', style: GoogleFonts.robotoCondensed(color: const Color(0xFFE5A93C), fontSize: 28, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  height: 40,
+                                  decoration: BoxDecoration(color: const Color(0xFF181822), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white12)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedGame,
+                                      dropdownColor: const Color(0xFF181822),
+                                      items: ['6/42', '6/45', '6/49', '6/55', '6/58'].map((String value) {
+                                        return DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)));
+                                      }).toList(),
+                                      onChanged: (newValue) => setState(() => selectedGame = newValue!),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                _buildSquareActionIcon(Icons.trending_up),
+                                const SizedBox(width: 6),
+                                _buildSquareActionIcon(Icons.bar_chart),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 200, padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Hot Number Frequency', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 16),
+                                        Expanded(
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              _buildCustomBar(45, Colors.redAccent, '1'),
+                                              _buildCustomBar(38, Colors.orangeAccent, '2'),
+                                              _buildCustomBar(32, Colors.greenAccent, '3'),
+                                              _buildCustomBar(34, Colors.blueAccent, '4'),
+                                              _buildCustomBar(29, Colors.purpleAccent, '5'),
+                                              _buildCustomBar(18, Colors.pinkAccent, '6'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Container(
+                                    height: 200, padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(color: const Color(0xFF16161C), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Lucky Generator', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.bold)),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10), height: 38,
+                                          decoration: BoxDecoration(color: Colors.black25, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white12)),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: selectedZodiac, isExpanded: true, dropdownColor: const Color(0xFF16161C),
+                                              style: const TextStyle(fontSize: 13, color: Colors.white),
+                                              items: ['Zodiac', 'Aries', 'Taurus', 'Gemini', 'Leo'].map((String val) => DropdownMenuItem<String>(value: val, child: Text(val))).toList(),
+                                              onChanged: (v) => setState(() => selectedZodiac = v!),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: 38,
+                                          child: TextField(
+                                            controller: _yearController, keyboardType: TextInputType.number, style: const TextStyle(fontSize: 13),
+                                            decoration: InputDecoration(
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 10), filled: true, fillColor: Colors.black25, labelText: 'Birth Year', labelStyle: const TextStyle(color: Colors.white38, fontSize: 11),
+                                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Colors.white12)),
+                                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5A93C))),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: double.infinity, height: 36,
+                                          child: ElevatedButton(
+                                            onPressed: _recalculateNumbers,
+                                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1812), side: const BorderSide(color: Color(0xFFE5A93C), width: 1.2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                                            child: const Text('Calculate', style: TextStyle(color: Color(0xFFE5A93C), fontSize: 13, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ListView.builder(
+                              shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                              itemCount: currentCombinations.length,
+                              itemBuilder: (context, index) => _buildPremiumLottoRow(currentCombinations[index]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                floatingActionButton: FloatingActionButton(
+                  backgroundColor: const Color(0xFF23163A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFE5A93C), width: 1.5)),
+                  onPressed: _recalculateNumbers,
+                  child: const Icon(Icons.add, color: Color(0xFFE5A93C), size: 28),
+                ),
+              );
+            }
+
+            Widget _buildNavigationTab(int index, IconData icon, String title) {
+              bool isCurrent = currentActiveTab == index;
+              return GestureDetector(
+                onTap: () => setState(() => currentActiveTab = index),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  decoration: BoxDecoration(border: isCurrent ? const Border(bottom: BorderSide(color: Color(0xFFE5A93C), width: 2.5)) : null),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: isCurrent ? const Color(0xFFE5A93C) : Colors.white30, size: 20),
+                      const SizedBox(height: 4),
+                      Text(title, style: TextStyle(fontSize: 9, fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal, color: isCurrent ? const Color(0xFFE5A93C) : Colors.white30)),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            Widget _buildSquareActionIcon(IconData icon) {
+              return Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: const Color(0xFF181822), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white10)),
+                child: Icon(icon, size: 18, color: Colors.white70),
+              );
+            }
+
+            Widget _buildCustomBar(double heightPercentage, Color barColor, String label) {
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(width: 12, height: heightPercentage * 2.2, decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(3))),
+                  const SizedBox(height: 6),
+                  Text(label, style: const TextStyle(fontSize: 9, color: Colors.white38)),
+                ],
+              );
+            }
+
+            Widget _buildPremiumLottoRow(List<int> numbers) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                decoration: BoxDecoration(color: const Color(0xFF14141A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star, color: Color(0xFFE5A93C), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: numbers.map((n) => Container(
+                          width: 34, height: 34, decoration: const BoxDecoration(color: Color(0xFF22222B), shape: BoxShape.circle),
+                          child: Center(child: Text(n.toString().padLeft(2, '0'), style: const TextStyle(color: Color(0xFFE5A93C), fontWeight: FontWeight.bold, fontSize: 13))),
+                        )).toList(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Text('94%', style: TextStyle(color: Color(0xFFE5A93C), fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('Match', style: TextStyle(fontSize: 8, color: Colors.white38)),
+                      ],
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      height: 28,
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), padding: const EdgeInsets.symmetric(horizontal: 12)),
+                        child: const Text('Save', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+          EOF
+          
+          # I-compile na ang APK
+          flutter build apk --release --split-per-abi
