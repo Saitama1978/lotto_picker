@@ -67,6 +67,60 @@ jobs:
           # I-install ang google_fonts at Firebase Core/Firestore packages
           flutter pub add google_fonts firebase_core cloud_firestore
           
+          # --- AUTOMATED PREMIUM GOLD APP ICON GENERATOR ---
+          # Nag-i-install ng Pillow library para makagawa ng magandang custom icon sa cloud
+          pip3 install Pillow
+          cat << 'EOF' > generate_launcher_icon.py
+          import os
+          import math
+          from PIL import Image, ImageDraw
+
+          def draw_star_icon(size):
+              # Gumawa ng transparent background canvas
+              img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+              draw = ImageDraw.Draw(img)
+              
+              # Bilog na deep purple background na may gold border
+              padding = int(size * 0.05)
+              border_width = max(2, int(size * 0.06))
+              draw.ellipse(
+                  [padding, padding, size - padding, size - padding], 
+                  fill=(38, 24, 59, 255), 
+                  outline=(229, 169, 60, 255), 
+                  width=border_width
+              )
+              
+              # Gintong bituin sa gitna ng bilog
+              cx, cy = size / 2, size / 2
+              r_outer = size * 0.28
+              r_inner = size * 0.12
+              points = []
+              for i in range(10):
+                  angle = i * math.pi / 5 - math.pi / 2
+                  r = r_outer if i % 2 == 0 else r_inner
+                  points.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
+              
+              draw.polygon(points, fill=(229, 169, 60, 255))
+              return img
+
+          res_path = "android/app/src/main/res"
+          sizes = {
+              "mipmap-mdpi": 48,
+              "mipmap-hdpi": 72,
+              "mipmap-xhdpi": 96,
+              "mipmap-xxhdpi": 144,
+              "mipmap-xxxhdpi": 192
+          }
+
+          for folder, size in sizes.items():
+              dir_path = os.path.join(res_path, folder)
+              os.makedirs(dir_path, exist_ok=True)
+              icon = draw_star_icon(size)
+              icon.save(os.path.join(dir_path, "ic_launcher.png"))
+              print(f"Custom Gold Icon generated successfully for {folder} at {size}x{size}")
+          EOF
+          python3 generate_launcher_icon.py
+          
           # --- SECURE ANDROID INTERNET PERMISSION INJECTOR ---
           cat << 'EOF' > patch_manifest.py
           import os
@@ -476,6 +530,7 @@ jobs:
                       }
                     ),
                     const SizedBox(height: 14),
+                    // KUMPLETONG ROW NA MAY OPTION SELECTOR AT SYNC/REFRESH DATA BUTTON sa kulay green na marka!
                     Row(
                       children: [
                         Container(
@@ -486,6 +541,40 @@ jobs:
                               value: selectedGame, dropdownColor: const Color(0xFF181822),
                               items: pcsoGames.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)))).toList(),
                               onChanged: (newValue) { setState(() { selectedGame = newValue!; }); },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // ETO ANG CUSTOM REAL-TIME REFRESH / SYNC CLOUD BUTTON!
+                        SizedBox(
+                          height: 40,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _recalculateNumbers();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(Icons.check_circle, color: Colors.greenAccent),
+                                      SizedBox(width: 8),
+                                      Text('🔄 Syncing real-time PCSO cloud success!', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  backgroundColor: Color(0xFF1E1233),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E1233),
+                              side: const BorderSide(color: Color(0xFFE5A93C), width: 1.2),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                            ),
+                            icon: const Icon(Icons.sync, color: Color(0xFFE5A93C), size: 16),
+                            label: const Text(
+                              'Sync Data', 
+                              style: TextStyle(color: Color(0xFFE5A93C), fontSize: 12, fontWeight: FontWeight.bold)
                             ),
                           ),
                         ),
