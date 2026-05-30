@@ -60,7 +60,18 @@ jobs:
           # I-install ang google_fonts at Firebase Core/Firestore packages
           flutter pub add google_fonts firebase_core cloud_firestore
           
-          # Isulat ang main.dart na may pansamantalang placeholders para sa Firebase
+          # --- ANDROID INTERNET PERMISSION INJECTOR ---
+          # Pinapayagan natin ang release build na lumabas sa internet para makakonekta sa Firestore
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"\/>' "$MANIFEST_PATH"
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>' "$MANIFEST_PATH"
+            echo "Internet and Network permissions successfully injected to AndroidManifest.xml!"
+          else
+            echo "Warning: AndroidManifest.xml not found!"
+          fi
+          
+          # Isulat ang main.dart na tugma sa totoong Firestore collections mo
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -468,19 +479,30 @@ jobs:
               );
             }
 
-            // === REAL-TIME FIREBASE CONNECTION VIEW ===
+            // === REAL-TIME FIREBASE CONNECTION TUGMA SA TOTOONG PCSO_DATA COLLECTIONS MO ===
             Widget _buildMyHistoryTab() {
+              // Binabasa ang real-time collection mo na "pcso_data"
               return StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('lotto_results').orderBy('date', descending: true).snapshots(),
+                stream: FirebaseFirestore.instance.collection('pcso_data').snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text('Firebase Access Error. Pakisuri ng database rules.', style: TextStyle(color: Colors.redAccent))));
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0), 
+                        child: Text('Firebase Access Error. Pakisuri ng database rules.', style: TextStyle(color: Colors.redAccent))
+                      )
+                    );
                   }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator(color: Color(0xFFE5A93C)));
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text('Walang data na nakuha mula sa Firestore lotto_results collection.', style: TextStyle(color: Colors.white38))));
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0), 
+                        child: Text('Walang data na nakuha mula sa Firestore pcso_data collection.', style: TextStyle(color: Colors.white38))
+                      )
+                    );
                   }
 
                   final docs = snapshot.data!.docs;
@@ -489,27 +511,51 @@ jobs:
                     padding: const EdgeInsets.all(16.0),
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
-                      String gameName = data['game'] ?? 'PCSO Draw';
-                      String drawDate = data['date'] ?? 'No Date';
-                      String luckyNumbers = data['numbers'] ?? '0-0-0-0-0-0';
+                      final doc = docs[index];
+                      // Ang document ID ang pangalan ng laro (e.g., "2D", "3D", "6-42")
+                      String gameId = doc.id; 
+                      final data = doc.data() as Map<String, dynamic>;
+                      
+                      // Binabasa ang "result" field na nakita natin sa screenshot mo (e.g., "24-11")
+                      String resultNumbers = data['result'] ?? 'No Result';
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFF14141A), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white10)),
+                        margin: const EdgeInsets.only(bottom: 10), 
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14141A), 
+                          borderRadius: BorderRadius.circular(8), 
+                          border: Border.all(color: Colors.white10)
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(gameName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
-                                Text(drawDate, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                                Text(
+                                  gameId.contains('-') ? 'Lotto $gameId' : '$gameId Digit Game', 
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)
+                                ),
+                                const Text('Latest Result', style: TextStyle(color: Colors.white38, fontSize: 11)),
                               ],
                             ),
-                            Text(
-                              luckyNumbers, 
-                              style: GoogleFonts.roboto(color: const Color(0xFFE5A93C), fontWeight: FontWeight.bold, fontSize: 14)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE5A93C).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.3))
+                              ),
+                              child: Text(
+                                resultNumbers, 
+                                style: GoogleFonts.roboto(
+                                  color: const Color(0xFFE5A93C), 
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 14,
+                                  letterSpacing: 1.0
+                                )
+                              ),
                             ),
                           ],
                         ),
@@ -569,17 +615,16 @@ jobs:
           EOF
           
           # AUTOMATED INJECTION SYSTEM:
-          # Pinapalitan natin ang mga placeholders ng iyong mga totoong GitHub Actions Secrets!
-          # Kung wala pa ang mga Secrets, mananatili ito sa default para hindi mag-crash ang run.
           API_KEY="${SEC_API_KEY:-AIzaSyAsintadoProFakeKeyForSecurityMatch}"
           APP_ID="${SEC_APP_ID:-1:1234567890:android:dynamicbuildappid}"
           SENDER_ID="${SEC_SENDER_ID:-1234567890}"
           PROJECT_ID="${SEC_PROJECT_ID:-lotto-asintado-pro}"
           
-          sed -i "s/INJECTED_FIREBASE_API_KEY/${API_KEY}/g" lib/main.dart
-          sed -i "s/INJECTED_FIREBASE_APP_ID/${APP_ID}/g" lib/main.dart
-          sed -i "s/INJECTED_FIREBASE_MESSAGING_SENDER_ID/${SENDER_ID}/g" lib/main.dart
-          sed -i "s/INJECTED_FIREBASE_PROJECT_ID/${PROJECT_ID}/g" lib/main.dart
+          # Gamitin ang native bash na pag-replace para mas sigurado
+          sed -i "s|INJECTED_FIREBASE_API_KEY|${API_KEY}|g" lib/main.dart
+          sed -i "s|INJECTED_FIREBASE_APP_ID|${APP_ID}|g" lib/main.dart
+          sed -i "s|INJECTED_FIREBASE_MESSAGING_SENDER_ID|${SENDER_ID}|g" lib/main.dart
+          sed -i "s|INJECTED_FIREBASE_PROJECT_ID|${PROJECT_ID}|g" lib/main.dart
           
           # Simulan ang compilation ng APK Release
           flutter build apk --release --split-per-abi
