@@ -722,7 +722,6 @@ jobs:
 
             Widget _buildCustomBar(double heightPercentage, Color barColor, String label) {
               return Column(
-                mainAxisAlignment: Main---------
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(width: 12, height: heightPercentage * 2.2, decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(3))),
