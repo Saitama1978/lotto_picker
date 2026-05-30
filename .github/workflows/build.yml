@@ -46,6 +46,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
 
       - name: Compile and Inject Premium Gold Code
+        env:
+          # Kinukuha ang mga ligtas na sekreto mula sa GitHub Repository Secrets
+          SEC_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          SEC_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          SEC_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          SEC_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
           rm -rf lotto_app_built
           flutter create --org com.renantefullo.lottoasintado lotto_app_built
@@ -54,7 +60,7 @@ jobs:
           # I-install ang google_fonts at Firebase Core/Firestore packages
           flutter pub add google_fonts firebase_core cloud_firestore
           
-          # Isulat ang main.dart na corrected at may live Firebase connection
+          # Isulat ang main.dart na may pansamantalang placeholders para sa Firebase
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -64,14 +70,14 @@ jobs:
           void main() async {
             WidgetsFlutterBinding.ensureInitialized();
             
-            // Inia-initialize ang Firebase gamit ang universal cloud options para sa dynamic building
+            // Inia-initialize ang Firebase gamit ang dynamic na mga susi
             try {
               await Firebase.initializeApp(
                 options: const FirebaseOptions(
-                  apiKey: "AIzaSyAsintadoProFakeKeyForSecurityMatch",
-                  appId: "1:1234567890:android:dynamicbuildappid",
-                  messagingSenderId: "1234567890",
-                  projectId: "lotto-asintado-pro", // Palitan mo ito kung iba ang actual Firebase Project ID mo, boss
+                  apiKey: "INJECTED_FIREBASE_API_KEY",
+                  appId: "INJECTED_FIREBASE_APP_ID",
+                  messagingSenderId: "INJECTED_FIREBASE_MESSAGING_SENDER_ID",
+                  projectId: "INJECTED_FIREBASE_PROJECT_ID",
                 ),
               );
             } catch (e) {
@@ -167,7 +173,7 @@ jobs:
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('🎯 New numbers calculated for $selectedGame!'),
+                  content: Text('🎯 Bagong kalkulasyon para sa $selectedGame!'),
                   backgroundColor: const Color(0xFF2C1C4D),
                 ),
               );
@@ -181,7 +187,7 @@ jobs:
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('⭐ Combination saved locally!'),
+                  content: Text('⭐ Na-save na sa My Combinations!'),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -561,6 +567,19 @@ jobs:
             }
           }
           EOF
+          
+          # AUTOMATED INJECTION SYSTEM:
+          # Pinapalitan natin ang mga placeholders ng iyong mga totoong GitHub Actions Secrets!
+          # Kung wala pa ang mga Secrets, mananatili ito sa default para hindi mag-crash ang run.
+          API_KEY="${SEC_API_KEY:-AIzaSyAsintadoProFakeKeyForSecurityMatch}"
+          APP_ID="${SEC_APP_ID:-1:1234567890:android:dynamicbuildappid}"
+          SENDER_ID="${SEC_SENDER_ID:-1234567890}"
+          PROJECT_ID="${SEC_PROJECT_ID:-lotto-asintado-pro}"
+          
+          sed -i "s/INJECTED_FIREBASE_API_KEY/${API_KEY}/g" lib/main.dart
+          sed -i "s/INJECTED_FIREBASE_APP_ID/${APP_ID}/g" lib/main.dart
+          sed -i "s/INJECTED_FIREBASE_MESSAGING_SENDER_ID/${SENDER_ID}/g" lib/main.dart
+          sed -i "s/INJECTED_FIREBASE_PROJECT_ID/${PROJECT_ID}/g" lib/main.dart
           
           # Simulan ang compilation ng APK Release
           flutter build apk --release --split-per-abi
