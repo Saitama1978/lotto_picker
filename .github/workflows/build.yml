@@ -1,6 +1,12 @@
 name: Auto-Sync Lotto Scraper & APK Builder
 
 on:
+  schedule:
+    # AUTOMATED TIMER (Philippine Time / PHT):
+    # - 03:45 UTC -> 11:45 AM PHT (Pagkatapos ng 11AM Swertres Draw)
+    # - 08:45 UTC -> 04:45 PM PHT (Pagkatapos ng 4PM Swertres Draw)
+    # - 13:45 UTC -> 09:45 PM PHT (Pagkatapos ng 9PM Swertres & Jackpot Draws)
+    - cron: '45 3,8,13 * * *'
   push:
     branches:
       - main
@@ -47,7 +53,6 @@ jobs:
 
       - name: Compile and Inject Premium Gold Code
         env:
-          # Kung mayroon kang GitHub secrets, babasahin ito. Kung wala, gagamitin ang nakitang susing pampubliko sa screenshots mo!
           SEC_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           SEC_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           SEC_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
@@ -55,15 +60,12 @@ jobs:
         run: |
           rm -rf lotto_app_built
           
-          # CRITICAL FIX: Ginawa nating "com.lotto_picker" ang org/package name para tugma sa Firebase setup mo!
           flutter create --org com lotto_app_built
           cd lotto_app_built
           
-          # I-install ang google_fonts at Firebase Core/Firestore packages
           flutter pub add google_fonts firebase_core cloud_firestore
           
           # --- SECURE ANDROID INTERNET PERMISSION INJECTOR ---
-          # Pinapayagan natin ang release build na makalabas sa internet para makakonekta sa Firestore
           cat << 'EOF' > patch_manifest.py
           import os
 
@@ -90,7 +92,7 @@ jobs:
           EOF
           python3 patch_manifest.py
           
-          # Isulat ang main.dart na may live Connection Diagnostic panel at Firebase dynamic options
+          # Isulat ang main.dart
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
@@ -667,20 +669,16 @@ jobs:
           }
           EOF
           
-          # AUTOMATED INJECTION SYSTEM:
-          # Inilapat natin ang eksaktong mga susi na nakuha mula sa screenshot mo para siguradong gagana kahit walang secrets!
           API_KEY="${SEC_API_KEY:-AIzaSyAsintadoProFakeKeyForSecurityMatch}"
           APP_ID="${SEC_APP_ID:-1:458447298380:android:308fd26da180954e40b9e9}"
           SENDER_ID="${SEC_SENDER_ID:-458447298380}"
           PROJECT_ID="${SEC_PROJECT_ID:-lotto-asintado}"
           
-          # Gamitin ang native bash na pag-replace para mas sigurado
           sed -i "s|INJECTED_FIREBASE_API_KEY|${API_KEY}|g" lib/main.dart
           sed -i "s|INJECTED_FIREBASE_APP_ID|${APP_ID}|g" lib/main.dart
           sed -i "s|INJECTED_FIREBASE_MESSAGING_SENDER_ID|${SENDER_ID}|g" lib/main.dart
           sed -i "s|INJECTED_FIREBASE_PROJECT_ID|${PROJECT_ID}|g" lib/main.dart
           
-          # Simulan ang compilation ng APK Release
           flutter build apk --release --split-per-abi
 
       - name: Upload APK Artifacts
