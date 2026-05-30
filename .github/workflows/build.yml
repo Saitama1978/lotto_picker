@@ -60,28 +60,49 @@ jobs:
           # I-install ang google_fonts at Firebase Core/Firestore packages
           flutter pub add google_fonts firebase_core cloud_firestore
           
-          # --- ANDROID INTERNET PERMISSION INJECTOR ---
-          # Pinapayagan natin ang release build na lumabas sa internet para makakonekta sa Firestore
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"\/>' "$MANIFEST_PATH"
-            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/>' "$MANIFEST_PATH"
-            echo "Internet and Network permissions successfully injected to AndroidManifest.xml!"
-          else
-            echo "Warning: AndroidManifest.xml not found!"
-          fi
+          # --- SECURE ANDROID INTERNET PERMISSION INJECTOR ---
+          # Pinapayagan natin ang release build na makalabas sa internet para makakonekta sa Firestore
+          cat << 'EOF' > patch_manifest.py
+          import os
+
+          manifest_path = "android/app/src/main/AndroidManifest.xml"
+          if os.path.exists(manifest_path):
+              with open(manifest_path, 'r') as f:
+                  content = f.read()
+              
+              permissions = """
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              """
+              
+              if "android.permission.INTERNET" not in content:
+                  # Isisingit ang mga permissions pagkatapos ng unang manifest tag
+                  index = content.find(">") + 1
+                  new_content = content[:index] + permissions + content[index:]
+                  with open(manifest_path, 'w') as f:
+                      f.write(new_content)
+                  print("Android Manifest patch: Permissions injected successfully!")
+              else:
+                  print("Android Manifest patch: Permissions already exist.")
+          else:
+              print("Android Manifest patch Error: Manifest file not found!")
+          EOF
+          python3 patch_manifest.py
           
-          # Isulat ang main.dart na tugma sa totoong Firestore collections mo
+          # Isulat ang main.dart na may live Connection Diagnostic panel at Firebase dynamic options
           cat << 'EOF' > lib/main.dart
           import 'package:flutter/material.dart';
           import 'package:google_fonts/google_fonts.dart';
           import 'package:firebase_core/firebase_core.dart';
           import 'package:cloud_firestore/cloud_firestore.dart';
 
+          // Gagamitin natin ito upang malaman kung matagumpay ang initialize
+          String firebaseInitStatus = "Initializing...";
+          String activeProjectId = "INJECTED_FIREBASE_PROJECT_ID";
+
           void main() async {
             WidgetsFlutterBinding.ensureInitialized();
             
-            // Inia-initialize ang Firebase gamit ang dynamic na mga susi
             try {
               await Firebase.initializeApp(
                 options: const FirebaseOptions(
@@ -91,8 +112,10 @@ jobs:
                   projectId: "INJECTED_FIREBASE_PROJECT_ID",
                 ),
               );
+              firebaseInitStatus = "Connected ✅";
             } catch (e) {
-              print("Firebase initialization status: $e");
+              firebaseInitStatus = "Failed: ${e.toString()}";
+              print("Firebase Error: $e");
             }
             
             runApp(const LottoAsintadoPremiumApp());
@@ -231,9 +254,13 @@ jobs:
                               'LOTTO ASINTADO PRO',
                               style: GoogleFonts.orbitron(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
                             ),
-                            const Text(
-                              'Developer: Renante Fullo | Database Connected', 
-                              style: TextStyle(fontSize: 9, color: Colors.greenAccent),
+                            Text(
+                              'Developer: Renante Fullo | DB: $firebaseInitStatus', 
+                              style: TextStyle(
+                                fontSize: 9, 
+                                color: firebaseInitStatus.startsWith("Connected") ? Colors.greenAccent : Colors.redAccent,
+                                fontWeight: FontWeight.bold
+                              ),
                             ),
                           ],
                         ),
@@ -479,29 +506,59 @@ jobs:
               );
             }
 
-            // === REAL-TIME FIREBASE CONNECTION TUGMA SA TOTOONG PCSO_DATA COLLECTIONS MO ===
+            // === REAL-TIME FIREBASE CONNECTION WITH SYSTEM DIAGNOSTICS ===
             Widget _buildMyHistoryTab() {
-              // Binabasa ang real-time collection mo na "pcso_data"
               return StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('pcso_data').snapshots(),
                 builder: (context, snapshot) {
+                  // I-display ang mismong error kung mayroon man upang madaling ma-debug sa phone
                   if (snapshot.hasError) {
-                    return const Center(
+                    return Center(
                       child: Padding(
-                        padding: EdgeInsets.all(24.0), 
-                        child: Text('Firebase Access Error. Pakisuri ng database rules.', style: TextStyle(color: Colors.redAccent))
-                      )
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                            const SizedBox(height: 16),
+                            const Text('Firestore Connection Error:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white70)),
+                            const SizedBox(height: 8),
+                            Text(
+                              snapshot.error.toString(), 
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 11)
+                            ),
+                            const SizedBox(height: 16),
+                            Text('Active Project ID in build: $activeProjectId', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                          ],
+                        ),
+                      ),
                     );
                   }
+                  
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator(color: Color(0xFFE5A93C)));
                   }
+                  
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Padding(
-                        padding: EdgeInsets.all(24.0), 
-                        child: Text('Walang data na nakuha mula sa Firestore pcso_data collection.', style: TextStyle(color: Colors.white38))
-                      )
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.cloud_off, color: Colors.white38, size: 48),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Walang data na nakuha mula sa Firestore pcso_data collection.', 
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white54)
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Project ID: $activeProjectId', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                          ],
+                        ),
+                      ),
                     );
                   }
 
@@ -512,11 +569,8 @@ jobs:
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
                       final doc = docs[index];
-                      // Ang document ID ang pangalan ng laro (e.g., "2D", "3D", "6-42")
                       String gameId = doc.id; 
                       final data = doc.data() as Map<String, dynamic>;
-                      
-                      // Binabasa ang "result" field na nakita natin sa screenshot mo (e.g., "24-11")
                       String resultNumbers = data['result'] ?? 'No Result';
 
                       return Container(
@@ -615,10 +669,11 @@ jobs:
           EOF
           
           # AUTOMATED INJECTION SYSTEM:
+          # Ang default fallback project_id ay ginawa nating "lotto-asintado" para tumugma sa database mo!
           API_KEY="${SEC_API_KEY:-AIzaSyAsintadoProFakeKeyForSecurityMatch}"
           APP_ID="${SEC_APP_ID:-1:1234567890:android:dynamicbuildappid}"
           SENDER_ID="${SEC_SENDER_ID:-1234567890}"
-          PROJECT_ID="${SEC_PROJECT_ID:-lotto-asintado-pro}"
+          PROJECT_ID="${SEC_PROJECT_ID:-lotto-asintado}"
           
           # Gamitin ang native bash na pag-replace para mas sigurado
           sed -i "s|INJECTED_FIREBASE_API_KEY|${API_KEY}|g" lib/main.dart
